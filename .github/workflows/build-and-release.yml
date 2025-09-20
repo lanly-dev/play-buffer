@@ -93,33 +93,6 @@ jobs:
         run: |
           # CMake is pre-installed on Windows runners
 
-      - name: Package artifacts (Ubuntu/macOS)
-        if: matrix.os != 'windows-latest'
-        run: |
-          cd portaudio
-          mkdir -p artifacts/include
-          cp -r include/* artifacts/include/ 2>/dev/null || true
-          find . -name "*.lib" -exec cp {} artifacts/ \; 2>/dev/null || true
-          find . -name "*.dll" -exec cp {} artifacts/ \; 2>/dev/null || true
-          find . -name "*.a" -exec cp {} artifacts/ \; 2>/dev/null || true
-          find . -name "*.so*" -exec cp {} artifacts/ \; 2>/dev/null || true
-          find . -name "*.dylib*" -exec cp {} artifacts/ \; 2>/dev/null || true
-          echo "Packaged files:"
-          ls -la artifacts/
-      - name: Package artifacts (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          Set-Location portaudio
-          New-Item -ItemType Directory -Force -Path artifacts/include | Out-Null
-          Copy-Item -Recurse -Force include/* artifacts/include/ -ErrorAction SilentlyContinue
-          Get-ChildItem -Recurse -Filter "*.lib" | Copy-Item -Destination artifacts/ -ErrorAction SilentlyContinue
-          Get-ChildItem -Recurse -Filter "*.dll" | Copy-Item -Destination artifacts/ -ErrorAction SilentlyContinue
-          Get-ChildItem -Recurse -Filter "*.a" | Copy-Item -Destination artifacts/ -ErrorAction SilentlyContinue
-          Get-ChildItem -Recurse -Filter "*.so*" | Copy-Item -Destination artifacts/ -ErrorAction SilentlyContinue
-          Get-ChildItem -Recurse -Filter "*.dylib*" | Copy-Item -Destination artifacts/ -ErrorAction SilentlyContinue
-          Write-Host "Packaged files:"
-          Get-ChildItem artifacts/
-        shell: pwsh
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
