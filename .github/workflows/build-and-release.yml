@@ -176,7 +176,11 @@ jobs:
       - name: List packaged artifacts
         run: |
           echo "Artifacts directory contents before release:"
-          ls -l artifacts/
+          if [ -d artifacts/ ]; then
+            ls -l artifacts/
+          else
+            echo "No artifacts directory found."
+          fi
 
       - name: Create release
         run: |
