@@ -1,9 +1,15 @@
 #!/bin/bash
 set -e
 
+# To find where play_buffer.c is located, use:
+# find .. -name play_buffer.c
+
 PLAY_BUFFER_PATH="../builder/play_buffer.c"
 
 # Check for portaudio.h header
+echo "Current working directory: $(pwd)"
+echo "Listing contents of ./portaudio/include:"
+ls -la ./portaudio/include
 PORTAUDIO_HEADER_PATH="./portaudio/include/portaudio.h"
 if [ ! -f "$PORTAUDIO_HEADER_PATH" ]; then
 	echo "Error: portaudio.h not found at $PORTAUDIO_HEADER_PATH"
