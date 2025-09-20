@@ -1,7 +1,8 @@
 # Build PortAudio on Windows
 New-Item -ItemType Directory -Force build
 Set-Location build
-cmake ..
+# Configure CMake to use static runtime linking to match our executable
+cmake .. -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded"
 cmake --build . --config Release
 
 # Build play_buffer.exe
