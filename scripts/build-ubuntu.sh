@@ -2,7 +2,7 @@
 set -e
 
 # Build PortAudio on Ubuntu
-mkdir build
+mkdir -p build
 cd build
 cmake ..
 make -j$(nproc)
