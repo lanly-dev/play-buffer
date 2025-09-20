@@ -41,5 +41,24 @@ echo "Using PortAudio library: $PORTAUDIO_LIB"
 
 gcc -o play_buffer ../builder/play_buffer.c -I./include "$PORTAUDIO_LIB" \
     -framework CoreAudio -framework AudioToolbox -framework AudioUnit -framework CoreFoundation -framework CoreServices
+
+# Verify the executable was created and check its properties
+if [ -f play_buffer ]; then
+    echo "play_buffer executable created successfully"
+    ls -la play_buffer
+    file play_buffer
+    chmod +x play_buffer
+    echo "File permissions set to executable"
+else
+    echo "Error: play_buffer executable was not created"
+    exit 1
+fi
+
 mkdir -p build/artifacts
 cp play_buffer build/artifacts/
+
+# Verify the artifact
+echo "Verifying artifact in build/artifacts:"
+ls -la build/artifacts/
+file build/artifacts/play_buffer
+echo "Artifact verification complete"
