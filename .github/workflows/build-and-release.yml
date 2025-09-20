@@ -139,7 +139,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: portaudio-${{ matrix.os }}-${{ needs.check-and-build.outputs.version }}
+          name: portaudio-${{ matrix.os }}-${{ needs.check-and-build.outputs.version }}-${{ github.job }}-${{ github.run_id }}
           path: portaudio/artifacts/
 
       - name: Install dependencies (Ubuntu)
