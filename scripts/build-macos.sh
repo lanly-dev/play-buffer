@@ -2,7 +2,6 @@
 set -e
 
 # Build PortAudio on macOS
-cd portaudio
 mkdir build
 cd build
 cmake ..

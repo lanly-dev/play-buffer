@@ -20,9 +20,15 @@ jobs:
       - name: Check for new PortAudio release
         id: check
         run: |
-          sudo apt-get update && sudo apt-get install -y jq
+          sudo apt-get update && sudo apt-get install -y jq curl
           LATEST_RELEASE=$(curl -s https://api.github.com/repos/PortAudio/portaudio/releases/latest | jq -r .tag_name)
           echo "Latest PortAudio release: $LATEST_RELEASE"
+          
+          # Validate that we got a proper tag
+          if [ -z "$LATEST_RELEASE" ] || [ "$LATEST_RELEASE" = "null" ]; then
+            echo "Error: Could not fetch latest release tag"
+            exit 1
+          fi
           
           if [ -f last_built.txt ]; then
             LAST_BUILT=$(cat last_built.txt)
@@ -53,7 +59,11 @@ jobs:
 
       - name: Checkout PortAudio
         run: |
+          echo "Checking out PortAudio version: ${{ needs.check-and-build.outputs.version }}"
           git clone --depth 1 --branch ${{ needs.check-and-build.outputs.version }} https://github.com/PortAudio/portaudio.git
+          cd portaudio
+          echo "PortAudio repository contents:"
+          ls -la
 
       - name: Install dependencies (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
@@ -73,27 +83,38 @@ jobs:
 
       - name: Build PortAudio (Ubuntu/macOS)
         if: matrix.os != 'windows-latest'
-        run: bash builder/scripts/build-${{ matrix.os == 'ubuntu-latest' && 'ubuntu' || 'macos' }}.sh
+        run: |
+          cd portaudio
+          echo "Building PortAudio on ${{ matrix.os }}"
+          bash ../builder/scripts/build-${{ matrix.os == 'ubuntu-latest' && 'ubuntu' || 'macos' }}.sh
+          echo "Build completed. Contents of build directory:"
+          ls -la build/
 
       - name: Build PortAudio (Windows)
         if: matrix.os == 'windows-latest'
-        run: powershell builder/scripts/build-windows.ps1
+        run: |
+          cd portaudio
+          echo "Building PortAudio on Windows"
+          powershell ../builder/scripts/build-windows.ps1
+          echo "Build completed. Contents of build directory:"
+          dir build\
 
       - name: Package artifacts
         run: |
-          cd portaudio/build
-          mkdir artifacts
-          cp -r ../include artifacts/
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            cp Release/*.lib artifacts/ 2>/dev/null || true
-            cp Release/*.dll artifacts/ 2>/dev/null || true
-          elif [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-            cp *.a artifacts/ 2>/dev/null || true
-            cp *.so* artifacts/ 2>/dev/null || true
-          else
-            cp *.a artifacts/ 2>/dev/null || true
-            cp *.dylib* artifacts/ 2>/dev/null || true
-          fi
+          cd portaudio
+          mkdir -p artifacts/include
+          cp -r include/* artifacts/include/ 2>/dev/null || true
+          
+          # Find and copy built libraries
+          find . -name "*.lib" -exec cp {} artifacts/ \; 2>/dev/null || true
+          find . -name "*.dll" -exec cp {} artifacts/ \; 2>/dev/null || true
+          find . -name "*.a" -exec cp {} artifacts/ \; 2>/dev/null || true
+          find . -name "*.so*" -exec cp {} artifacts/ \; 2>/dev/null || true
+          find . -name "*.dylib*" -exec cp {} artifacts/ \; 2>/dev/null || true
+          
+          # List what we packaged
+          echo "Packaged files:"
+          ls -la artifacts/
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
