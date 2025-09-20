@@ -9,6 +9,6 @@ make -j$(nproc)
 
 # Build the play_buffer example
 cd ..
-gcc -o play_buffer play_buffer.c -Iportaudio/include -Lbuild -lportaudio
+gcc -o play_buffer play_buffer.c -I./portaudio/include -L./build -lportaudio
 mkdir -p build/artifacts
 cp play_buffer build/artifacts/
