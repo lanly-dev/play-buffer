@@ -1,6 +1,10 @@
 name: Build and Release PortAudio
 
 on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
   schedule:
     - cron: '0 0 * * *'  # Run daily at midnight UTC
   workflow_dispatch:  # Allow manual trigger
@@ -124,7 +128,7 @@ jobs:
 
   release:
     needs: [check-and-build, build]
-    if: needs.check-and-build.outputs.should-build == 'true'
+    if: needs.check-and-build.outputs.should-build == 'true' && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
