@@ -95,21 +95,19 @@ jobs:
       - name: Build PortAudio (Ubuntu/macOS)
         if: matrix.os != 'windows-latest'
         run: |
-          cd portaudio
           echo "Building PortAudio on ${{ matrix.os }}"
           set -x
-          bash ../builder/scripts/build-${{ matrix.os == 'ubuntu-latest' && 'ubuntu' || 'macos' }}.sh || { echo 'Build failed!'; [ -f build/CMakeFiles/CMakeError.log ] && cat build/CMakeFiles/CMakeError.log; exit 1; }
+          bash scripts/build-${{ matrix.os == 'ubuntu-latest' && 'ubuntu' || 'macos' }}.sh || { echo 'Build failed!'; [ -f portaudio/build/CMakeFiles/CMakeError.log ] && cat portaudio/build/CMakeFiles/CMakeError.log; exit 1; }
           set +x
           echo "Build completed. Contents of build directory:"
-          ls -la build/
+          ls -la portaudio/build/
       - name: Build PortAudio (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          Set-Location portaudio
           Write-Host "Building PortAudio on Windows"
-          ../builder/scripts/build-windows.ps1
+          scripts\build-windows.ps1
           Write-Host "Build completed. Contents of build directory:"
-          Get-ChildItem .
+          Get-ChildItem portaudio
         shell: pwsh
       - name: Package artifacts (Ubuntu/macOS)
         if: matrix.os != 'windows-latest'

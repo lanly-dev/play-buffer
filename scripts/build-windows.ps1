@@ -1,4 +1,4 @@
-$env:INCLUDE = "$PWD\portaudio\include;$env:INCLUDE"
+$env:INCLUDE =Copy-Item play_buffer.exe build\artifacts/io\include;$env:INCLUDE"
 $env:LIB = "$PWD\build;$env:LIB"
 # Build PortAudio on Windows
 New-Item -ItemType Directory -Force build

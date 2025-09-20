@@ -1,15 +1,13 @@
 #!/bin/bash
 set -e
 
+PLAY_BUFFER_PATH="play_buffer.c"
+
+#!/bin/bash
+set -e
+
 # To find where play_buffer.c is located, use:
 # find .. -name play_buffer.c
-
-PLAY_BUFFER_PATH="../builder/play_buffer.c"
-
-# Change to project root directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$SCRIPT_DIR/../.."
-cd "$PROJECT_ROOT"
 
 # Check for portaudio.h header
 echo "Current working directory: $(pwd)"
@@ -32,6 +30,6 @@ make -j$(sysctl -n hw.ncpu)
 
 # Build the play_buffer example
 cd ..
-gcc -o play_buffer ../builder/play_buffer.c -I./portaudio/include -L./build -lportaudio
+gcc -o play_buffer play_buffer.c -I./portaudio/include -L./build -lportaudio
 mkdir -p build/artifacts
 cp play_buffer build/artifacts/
