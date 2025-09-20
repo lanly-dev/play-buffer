@@ -65,16 +65,16 @@ jobs:
       - name: Checkout PortAudio (Ubuntu/macOS)
         if: matrix.os != 'windows-latest'
         run: |
-          echo "Checking out PortAudio version: ${{ needs.check-and-build.outputs.version }}"
-          git clone --depth 1 --branch ${{ needs.check-and-build.outputs.version }} https://github.com/PortAudio/portaudio.git
+          echo "Checking out latest PortAudio commit from default branch"
+          git clone --depth 1 --branch master https://github.com/PortAudio/portaudio.git
           cd portaudio
           echo "PortAudio repository contents:"
           ls -la
       - name: Checkout PortAudio (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          Write-Host "Checking out PortAudio version: ${{ needs.check-and-build.outputs.version }}"
-          git clone --depth 1 --branch ${{ needs.check-and-build.outputs.version }} https://github.com/PortAudio/portaudio.git
+          Write-Host "Checking out latest PortAudio commit from default branch"
+          git clone --depth 1 --branch master https://github.com/PortAudio/portaudio.git
           Set-Location portaudio
           Write-Host "PortAudio repository contents:"
           Get-ChildItem
