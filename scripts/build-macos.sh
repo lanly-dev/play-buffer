@@ -52,15 +52,25 @@ echo "Using PortAudio library: $PORTAUDIO_LIB"
 
 # Show the compilation command for debugging
 echo "Compiling with command:"
-echo "gcc -v -o play_buffer ../builder/play_buffer.c -I./include \"$PORTAUDIO_LIB\" -framework CoreAudio -framework AudioToolbox -framework AudioUnit -framework CoreFoundation -framework CoreServices"
+echo "clang -v -o play_buffer ../builder/play_buffer.c -I./include \"$PORTAUDIO_LIB\" -framework CoreAudio -framework AudioToolbox -framework AudioUnit -framework CoreFoundation -framework CoreServices"
 
-# Execute the compilation with verbose output
-gcc -v -o play_buffer ../builder/play_buffer.c -I./include "$PORTAUDIO_LIB" \
+# Try using clang instead of gcc (more standard on macOS)
+clang -v -o play_buffer ../builder/play_buffer.c -I./include "$PORTAUDIO_LIB" \
     -framework CoreAudio -framework AudioToolbox -framework AudioUnit -framework CoreFoundation -framework CoreServices
 
 # Check compilation result
 COMPILE_RESULT=$?
 echo "Compilation exit code: $COMPILE_RESULT"
+
+# If that fails, try alternative approach with explicit linking
+if [ $COMPILE_RESULT -ne 0 ]; then
+    echo "First compilation failed, trying alternative approach..."
+    clang -v -o play_buffer ../builder/play_buffer.c -I./include \
+        -L./build -lportaudio \
+        -framework CoreAudio -framework AudioToolbox -framework AudioUnit -framework CoreFoundation -framework CoreServices
+    COMPILE_RESULT=$?
+    echo "Alternative compilation exit code: $COMPILE_RESULT"
+fi
 
 if [ $COMPILE_RESULT -ne 0 ]; then
     echo "Error: Compilation failed with exit code $COMPILE_RESULT"
