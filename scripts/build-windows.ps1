@@ -1,8 +1,8 @@
 # Build PortAudio on Windows
 New-Item -ItemType Directory -Force build
 Set-Location build
-# Configure CMake to use static runtime linking to match our executable
-cmake .. -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreaded"
+# Configure CMake to use dynamic MSVC runtime (/MD) to match PortAudio's default import symbols
+cmake .. -DCMAKE_MSVC_RUNTIME_LIBRARY="MultiThreadedDLL"
 cmake --build . --config Release
 
 # Build play_buffer.exe
@@ -27,8 +27,8 @@ if ($libFile) {
     
     Write-Host "Compiling play_buffer.exe..."
     # Use the full path to the library file directly, like we do in macOS
-    # Use /MT for static runtime linking and add required Windows libraries
-    cmd /c "`"$vcvars`" && cl /MT ..\builder\play_buffer.c /I .\include /link `"$($libFile.FullName)`" kernel32.lib user32.lib advapi32.lib ole32.lib winmm.lib /OUT:play_buffer.exe"
+    # Use /MD (dynamic CRT) to align with library build and add required Windows system libraries
+    cmd /c "`"$vcvars`" && cl /MD ..\builder\play_buffer.c /I .\include /link `"$($libFile.FullName)`" kernel32.lib user32.lib advapi32.lib ole32.lib winmm.lib msvcrt.lib vcruntime.lib ucrt.lib /OUT:play_buffer.exe"
 } else {
     Write-Host "Error: Could not find PortAudio library file"
     exit 1
