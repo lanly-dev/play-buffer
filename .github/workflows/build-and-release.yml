@@ -1,0 +1,131 @@
+name: Build and Release PortAudio
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Run daily at midnight UTC
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  check-and-build:
+    runs-on: ubuntu-latest
+    outputs:
+      should-build: ${{ steps.check.outputs.should_build }}
+      version: ${{ steps.check.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for new PortAudio release
+        id: check
+        run: |
+          sudo apt-get update && sudo apt-get install -y jq
+          LATEST_RELEASE=$(curl -s https://api.github.com/repos/PortAudio/portaudio/releases/latest | jq -r .tag_name)
+          echo "Latest PortAudio release: $LATEST_RELEASE"
+          
+          if [ -f last_built.txt ]; then
+            LAST_BUILT=$(cat last_built.txt)
+            echo "Last built: $LAST_BUILT"
+            if [ "$LATEST_RELEASE" = "$LAST_BUILT" ]; then
+              echo "should_build=false" >> $GITHUB_OUTPUT
+            else
+              echo "should_build=true" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "version=$LATEST_RELEASE" >> $GITHUB_OUTPUT
+
+  build:
+    needs: check-and-build
+    if: needs.check-and-build.outputs.should-build == 'true'
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout builder
+        uses: actions/checkout@v4
+        with:
+          path: builder
+
+      - name: Checkout PortAudio
+        run: |
+          git clone --depth 1 --branch ${{ needs.check-and-build.outputs.version }} https://github.com/PortAudio/portaudio.git
+
+      - name: Install dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential
+
+      - name: Install dependencies (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install cmake
+
+      - name: Install dependencies (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          # CMake is pre-installed on Windows runners
+
+      - name: Build PortAudio (Ubuntu/macOS)
+        if: matrix.os != 'windows-latest'
+        run: bash builder/scripts/build-${{ matrix.os == 'ubuntu-latest' && 'ubuntu' || 'macos' }}.sh
+
+      - name: Build PortAudio (Windows)
+        if: matrix.os == 'windows-latest'
+        run: powershell builder/scripts/build-windows.ps1
+
+      - name: Package artifacts
+        run: |
+          cd portaudio/build
+          mkdir artifacts
+          cp -r ../include artifacts/
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            cp Release/*.lib artifacts/ 2>/dev/null || true
+            cp Release/*.dll artifacts/ 2>/dev/null || true
+          elif [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            cp *.a artifacts/ 2>/dev/null || true
+            cp *.so* artifacts/ 2>/dev/null || true
+          else
+            cp *.a artifacts/ 2>/dev/null || true
+            cp *.dylib* artifacts/ 2>/dev/null || true
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: portaudio-${{ matrix.os }}-${{ needs.check-and-build.outputs.version }}
+          path: portaudio/build/artifacts/
+
+  release:
+    needs: [check-and-build, build]
+    if: needs.check-and-build.outputs.should-build == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts/
+
+      - name: Create release
+        run: |
+          gh release create ${{ needs.check-and-build.outputs.version }} \
+            --title "PortAudio ${{ needs.check-and-build.outputs.version }}" \
+            --notes "Automated build of PortAudio ${{ needs.check-and-build.outputs.version }}" \
+            artifacts/*/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update last built
+        run: |
+          echo ${{ needs.check-and-build.outputs.version }} > last_built.txt
+          git add last_built.txt
+          git commit -m "Update last built to ${{ needs.check-and-build.outputs.version }}"
+          git push
