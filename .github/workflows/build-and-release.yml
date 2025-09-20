@@ -151,17 +151,9 @@ jobs:
         if: matrix.os != 'windows-latest'
         run: |
           cd portaudio
-          mkdir -p artifacts/include
-          cp -r include/* artifacts/include/ 2>/dev/null || true
+          mkdir -p artifacts
 
-          # Find and copy built libraries
-          find . -name "*.lib" -exec cp {} artifacts/ \; 2>/dev/null || true
-          find . -name "*.dll" -exec cp {} artifacts/ \; 2>/dev/null || true
-          find . -name "*.a" -exec cp {} artifacts/ \; 2>/dev/null || true
-          find . -name "*.so*" -exec cp {} artifacts/ \; 2>/dev/null || true
-          find . -name "*.dylib*" -exec cp {} artifacts/ \; 2>/dev/null || true
-
-          # Copy the play_buffer executable if it exists in build/artifacts
+          # Copy only the play_buffer executable if it exists in build/artifacts
           if [ -f build/artifacts/play_buffer ]; then
             cp build/artifacts/play_buffer artifacts/
             echo "Copied play_buffer executable"
@@ -178,17 +170,9 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: |
           Set-Location portaudio
-          New-Item -ItemType Directory -Force -Path artifacts/include | Out-Null
-          Copy-Item -Recurse -Force include/* artifacts/include/ -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Force -Path artifacts | Out-Null
 
-          # Find and copy built libraries
-          Get-ChildItem -Recurse -Filter "*.lib" | Copy-Item -Destination artifacts/ -ErrorAction SilentlyContinue
-          Get-ChildItem -Recurse -Filter "*.dll" | Copy-Item -Destination artifacts/ -ErrorAction SilentlyContinue
-          Get-ChildItem -Recurse -Filter "*.a" | Copy-Item -Destination artifacts/ -ErrorAction SilentlyContinue
-          Get-ChildItem -Recurse -Filter "*.so*" | Copy-Item -Destination artifacts/ -ErrorAction SilentlyContinue
-          Get-ChildItem -Recurse -Filter "*.dylib*" | Copy-Item -Destination artifacts/ -ErrorAction SilentlyContinue
-
-          # Copy the play_buffer.exe executable if it exists in build/artifacts
+          # Copy only the play_buffer.exe executable if it exists in build/artifacts
           if (Test-Path "build\artifacts\play_buffer.exe") {
             Copy-Item "build\artifacts\play_buffer.exe" artifacts/
             Write-Host "Copied play_buffer.exe executable"
