@@ -51,41 +51,96 @@ jobs:
   build:
     needs: check-and-build
     if: needs.check-and-build.outputs.should-build == 'true'
+    runs-on: ${{ matrix.os }}
     strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - name: Checkout builder
+        uses: actions/checkout@v4
+        with:
+          path: builder
+      - name: Checkout PortAudio (Ubuntu/macOS)
+        if: matrix.os != 'windows-latest'
         run: |
-          sudo apt-get update && sudo apt-get install -y jq curl git
-          LATEST_COMMIT=$(git ls-remote https://github.com/PortAudio/portaudio.git HEAD | awk '{print $1}')
-          SHORT_COMMIT=${LATEST_COMMIT: -5}
-          DATE_TAG=$(date +"%Y%m")
-          BUILD_NUM=1
-          CUSTOM_TAG="$DATE_TAG.$SHORT_COMMIT.$BUILD_NUM"
-          if [ -f last_built.txt ]; then
-            LAST_BUILT=$(cat last_built.txt)
-            LAST_DATE=$(echo "$LAST_BUILT" | cut -d'.' -f1)
-            LAST_COMMIT=$(echo "$LAST_BUILT" | cut -d'.' -f2)
-            LAST_NUM=$(echo "$LAST_BUILT" | cut -d'.' -f3)
-            if [ "$DATE_TAG" = "$LAST_DATE" ] && [ "$SHORT_COMMIT" = "$LAST_COMMIT" ]; then
-              BUILD_NUM=$((LAST_NUM + 1))
-              CUSTOM_TAG="$DATE_TAG.$SHORT_COMMIT.$BUILD_NUM"
-            fi
-          fi
-          echo "Custom tag: $CUSTOM_TAG"
-          if [ -f last_built.txt ]; then
-            if [ "$CUSTOM_TAG" = "$(cat last_built.txt)" ]; then
-              echo "should_build=false" >> $GITHUB_OUTPUT
-            else
-              echo "should_build=true" >> $GITHUB_OUTPUT
-            fi
-          else
-            echo "should_build=true" >> $GITHUB_OUTPUT
-          fi
-          echo "version=$CUSTOM_TAG" >> $GITHUB_OUTPUT
+          echo "Checking out PortAudio version: ${{ needs.check-and-build.outputs.version }}"
+          git clone --depth 1 --branch ${{ needs.check-and-build.outputs.version }} https://github.com/PortAudio/portaudio.git
+          cd portaudio
+          echo "PortAudio repository contents:"
+          ls -la
+      - name: Checkout PortAudio (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
           Write-Host "Checking out PortAudio version: ${{ needs.check-and-build.outputs.version }}"
           git clone --depth 1 --branch ${{ needs.check-and-build.outputs.version }} https://github.com/PortAudio/portaudio.git
           Set-Location portaudio
           Write-Host "PortAudio repository contents:"
           Get-ChildItem
         shell: pwsh
+      - name: Install dependencies (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake build-essential
+      - name: Install dependencies (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          brew install cmake
+      - name: Install dependencies (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          # CMake is pre-installed on Windows runners
+      - name: Build PortAudio (Ubuntu/macOS)
+        if: matrix.os != 'windows-latest'
+        run: |
+          cd portaudio
+          echo "Building PortAudio on ${{ matrix.os }}"
+          set -x
+          bash ../builder/scripts/build-${{ matrix.os == 'ubuntu-latest' && 'ubuntu' || 'macos' }}.sh || { echo 'Build failed!'; [ -f build/CMakeFiles/CMakeError.log ] && cat build/CMakeFiles/CMakeError.log; exit 1; }
+          set +x
+          echo "Build completed. Contents of build directory:"
+          ls -la build/
+      - name: Build PortAudio (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          Set-Location portaudio
+          Write-Host "Building PortAudio on Windows"
+          ../builder/scripts/build-windows.ps1
+          Write-Host "Build completed. Contents of build directory:"
+          Get-ChildItem .
+        shell: pwsh
+      - name: Package artifacts (Ubuntu/macOS)
+        if: matrix.os != 'windows-latest'
+        run: |
+          cd portaudio
+          mkdir -p artifacts/include
+          cp -r include/* artifacts/include/ 2>/dev/null || true
+          find . -name "*.lib" -exec cp {} artifacts/ \; 2>/dev/null || true
+          find . -name "*.dll" -exec cp {} artifacts/ \; 2>/dev/null || true
+          find . -name "*.a" -exec cp {} artifacts/ \; 2>/dev/null || true
+          find . -name "*.so*" -exec cp {} artifacts/ \; 2>/dev/null || true
+          find . -name "*.dylib*" -exec cp {} artifacts/ \; 2>/dev/null || true
+          echo "Packaged files:"
+          ls -la artifacts/
+      - name: Package artifacts (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          Set-Location portaudio
+          New-Item -ItemType Directory -Force -Path artifacts/include | Out-Null
+          Copy-Item -Recurse -Force include/* artifacts/include/ -ErrorAction SilentlyContinue
+          Get-ChildItem -Recurse -Filter "*.lib" | Copy-Item -Destination artifacts/ -ErrorAction SilentlyContinue
+          Get-ChildItem -Recurse -Filter "*.dll" | Copy-Item -Destination artifacts/ -ErrorAction SilentlyContinue
+          Get-ChildItem -Recurse -Filter "*.a" | Copy-Item -Destination artifacts/ -ErrorAction SilentlyContinue
+          Get-ChildItem -Recurse -Filter "*.so*" | Copy-Item -Destination artifacts/ -ErrorAction SilentlyContinue
+          Get-ChildItem -Recurse -Filter "*.dylib*" | Copy-Item -Destination artifacts/ -ErrorAction SilentlyContinue
+          Write-Host "Packaged files:"
+          Get-ChildItem artifacts/
+        shell: pwsh
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: portaudio-${{ matrix.os }}-${{ needs.check-and-build.outputs.version }}
+          path: portaudio/artifacts/
 
       - name: Install dependencies (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
