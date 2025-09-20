@@ -102,7 +102,7 @@ jobs:
           cd portaudio
           echo "Building PortAudio on ${{ matrix.os }}"
           set -x
-          bash ../builder/scripts/build-${{ matrix.os == 'ubuntu-latest' && 'ubuntu' || 'macos' }}.sh || { echo 'Build failed!'; cat build/CMakeFiles/CMakeError.log || true; exit 1; }
+          bash ../builder/scripts/build-${{ matrix.os == 'ubuntu-latest' && 'ubuntu' || 'macos' }}.sh || { echo 'Build failed!'; [ -f build/CMakeFiles/CMakeError.log ] && cat build/CMakeFiles/CMakeError.log; exit 1; }
           set +x
           echo "Build completed. Contents of build directory:"
           ls -la build/

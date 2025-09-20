@@ -2,7 +2,7 @@
 set -e
 
 # Build PortAudio on macOS
-mkdir build
+mkdir -p build
 cd build
 cmake ..
 make -j$(sysctl -n hw.ncpu)
