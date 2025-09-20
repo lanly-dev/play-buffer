@@ -9,7 +9,7 @@ make -j$(sysctl -n hw.ncpu)
 
 # Build the play_buffer example
 cd ..
-gcc -o play_buffer play_buffer.c -Iportaudio/include -Lbuild -lportaudio
+gcc -o play_buffer ../play_buffer.c -Iportaudio/include -Lbuild -lportaudio
 mkdir -p build/artifacts
 cp play_buffer build/artifacts/
 mkdir -p build/artifacts
