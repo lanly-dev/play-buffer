@@ -24,20 +24,23 @@ jobs:
       - name: Check for new PortAudio release
         id: check
         run: |
-          sudo apt-get update && sudo apt-get install -y jq curl
-          LATEST_RELEASE=$(curl -s https://api.github.com/repos/PortAudio/portaudio/releases/latest | jq -r .tag_name)
-          echo "Latest PortAudio release: $LATEST_RELEASE"
-
-          # Validate that we got a proper tag
-          if [ -z "$LATEST_RELEASE" ] || [ "$LATEST_RELEASE" = "null" ]; then
-            echo "Error: Could not fetch latest release tag"
-            exit 1
-          fi
-
+          sudo apt-get update && sudo apt-get install -y jq curl git
+          LATEST_COMMIT=$(git ls-remote https://github.com/PortAudio/portaudio.git HEAD | awk '{print $1}')
+          SHORT_COMMIT=${LATEST_COMMIT: -6}
+          DATE_TAG=$(date +"%Y%m")
+          BUILD_NUM=1
+          while true; do
+            CUSTOM_TAG="$DATE_TAG.$SHORT_COMMIT.$BUILD_NUM"
+            TAG_EXISTS=$(curl -s https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/$CUSTOM_TAG -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" | jq -r .tag_name)
+            if [ "$TAG_EXISTS" = "$CUSTOM_TAG" ]; then
+              BUILD_NUM=$((BUILD_NUM + 1))
+            else
+              break
+            fi
+          done
+          echo "Custom tag: $CUSTOM_TAG"
           if [ -f last_built.txt ]; then
-            LAST_BUILT=$(cat last_built.txt)
-            echo "Last built: $LAST_BUILT"
-            if [ "$LATEST_RELEASE" = "$LAST_BUILT" ]; then
+            if [ "$CUSTOM_TAG" = "$(cat last_built.txt)" ]; then
               echo "should_build=false" >> $GITHUB_OUTPUT
             else
               echo "should_build=true" >> $GITHUB_OUTPUT
@@ -45,8 +48,7 @@ jobs:
           else
             echo "should_build=true" >> $GITHUB_OUTPUT
           fi
-
-          echo "version=$LATEST_RELEASE" >> $GITHUB_OUTPUT
+          echo "version=$CUSTOM_TAG" >> $GITHUB_OUTPUT
 
   build:
     needs: check-and-build
