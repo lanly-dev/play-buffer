@@ -173,12 +173,22 @@ jobs:
         with:
           path: artifacts/
 
+      - name: List packaged artifacts
+        run: |
+          echo "Artifacts directory contents before release:"
+          ls -l artifacts/
+
       - name: Create release
         run: |
-          gh release create ${{ needs.check-and-build.outputs.version }} \
-            --title "PortAudio ${{ needs.check-and-build.outputs.version }}" \
-            --notes "Automated build of PortAudio ${{ needs.check-and-build.outputs.version }}" \
-            artifacts/*/*
+          if ls artifacts/*/* 1> /dev/null 2>&1; then
+            gh release create ${{ needs.check-and-build.outputs.version }} \
+              --title "PortAudio ${{ needs.check-and-build.outputs.version }}" \
+              --notes "Automated build of PortAudio ${{ needs.check-and-build.outputs.version }}" \
+              artifacts/*/*
+          else
+            echo "No artifacts found to upload. Skipping release."
+            exit 0
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
