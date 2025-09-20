@@ -27,13 +27,13 @@ jobs:
           sudo apt-get update && sudo apt-get install -y jq curl
           LATEST_RELEASE=$(curl -s https://api.github.com/repos/PortAudio/portaudio/releases/latest | jq -r .tag_name)
           echo "Latest PortAudio release: $LATEST_RELEASE"
-          
+
           # Validate that we got a proper tag
           if [ -z "$LATEST_RELEASE" ] || [ "$LATEST_RELEASE" = "null" ]; then
             echo "Error: Could not fetch latest release tag"
             exit 1
           fi
-          
+
           if [ -f last_built.txt ]; then
             LAST_BUILT=$(cat last_built.txt)
             echo "Last built: $LAST_BUILT"
@@ -45,7 +45,7 @@ jobs:
           else
             echo "should_build=true" >> $GITHUB_OUTPUT
           fi
-          
+
           echo "version=$LATEST_RELEASE" >> $GITHUB_OUTPUT
 
   build:
@@ -185,14 +185,14 @@ jobs:
           cd portaudio
           mkdir -p artifacts/include
           cp -r include/* artifacts/include/ 2>/dev/null || true
-          
+
           # Find and copy built libraries
           find . -name "*.lib" -exec cp {} artifacts/ \; 2>/dev/null || true
           find . -name "*.dll" -exec cp {} artifacts/ \; 2>/dev/null || true
           find . -name "*.a" -exec cp {} artifacts/ \; 2>/dev/null || true
           find . -name "*.so*" -exec cp {} artifacts/ \; 2>/dev/null || true
           find . -name "*.dylib*" -exec cp {} artifacts/ \; 2>/dev/null || true
-          
+
           # List what we packaged
           echo "Packaged files:"
           ls -la artifacts/
@@ -203,14 +203,14 @@ jobs:
           Set-Location portaudio
           New-Item -ItemType Directory -Force -Path artifacts/include | Out-Null
           Copy-Item -Recurse -Force include/* artifacts/include/ -ErrorAction SilentlyContinue
-          
+
           # Find and copy built libraries
           Get-ChildItem -Recurse -Filter "*.lib" | Copy-Item -Destination artifacts/ -ErrorAction SilentlyContinue
           Get-ChildItem -Recurse -Filter "*.dll" | Copy-Item -Destination artifacts/ -ErrorAction SilentlyContinue
           Get-ChildItem -Recurse -Filter "*.a" | Copy-Item -Destination artifacts/ -ErrorAction SilentlyContinue
           Get-ChildItem -Recurse -Filter "*.so*" | Copy-Item -Destination artifacts/ -ErrorAction SilentlyContinue
           Get-ChildItem -Recurse -Filter "*.dylib*" | Copy-Item -Destination artifacts/ -ErrorAction SilentlyContinue
-          
+
           # List what we packaged
           Write-Host "Packaged files:"
           Get-ChildItem artifacts/
@@ -261,7 +261,11 @@ jobs:
         run: |
           for file in artifacts/*/*; do
             if [ -f "$file" ]; then
-              gh release upload ${{ needs.check-and-build.outputs.version }} "$file"
+              parent=$(basename $(dirname "$file"))
+              base=$(basename "$file")
+              newname="${parent}-${base}"
+              cp "$file" "/tmp/$newname"
+              gh release upload ${{ needs.check-and-build.outputs.version }} "/tmp/$newname"
             fi
           done
         env:
