@@ -26,8 +26,8 @@ if ($libFile) {
     
     Write-Host "Compiling play_buffer.exe..."
     # Use the full path to the library file directly, like we do in macOS
-    # Add required Windows system libraries for PortAudio
-    cmd /c "`"$vcvars`" && cl ..\builder\play_buffer.c /I .\include /link `"$($libFile.FullName)`" kernel32.lib user32.lib advapi32.lib ole32.lib winmm.lib /OUT:play_buffer.exe"
+    # Use /MT for static runtime linking and add required Windows libraries
+    cmd /c "`"$vcvars`" && cl /MT ..\builder\play_buffer.c /I .\include /link `"$($libFile.FullName)`" kernel32.lib user32.lib advapi32.lib ole32.lib winmm.lib /OUT:play_buffer.exe"
 } else {
     Write-Host "Error: Could not find PortAudio library file"
     exit 1
