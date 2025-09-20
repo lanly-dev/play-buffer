@@ -1,10 +1,4 @@
-#!/bin/bash
-set -e
-
-PLAY_BUFFER_PATH="play_buffer.c"
-
-#!/bin/bash
-set -e
+#!/bin/sh
 
 # To find where play_buffer.c is located, use:
 # find .. -name play_buffer.c
@@ -26,7 +20,7 @@ fi
 mkdir -p build
 cd build
 cmake .. -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-make -j$(sysctl -n hw.ncpu)
+make -j$(nproc 2>/dev/null || echo 4)
 
 # Build the play_buffer example
 cd ..
