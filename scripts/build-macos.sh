@@ -5,12 +5,12 @@
 
 # Check for portaudio.h header
 echo "Current working directory: $(pwd)"
-echo "Listing contents of ./portaudio/include:"
-ls -la ./portaudio/include
-PORTAUDIO_HEADER_PATH="./portaudio/include/portaudio.h"
+echo "Listing contents of ./include:"
+ls -la ./include
+PORTAUDIO_HEADER_PATH="./include/portaudio.h"
 if [ ! -f "$PORTAUDIO_HEADER_PATH" ]; then
 	echo "Error: portaudio.h not found at $PORTAUDIO_HEADER_PATH"
-	echo "Please ensure PortAudio is downloaded and portaudio/include/portaudio.h exists."
+	echo "Please ensure PortAudio is downloaded and include/portaudio.h exists."
 	exit 1
 else
 	echo "Found portaudio.h at: $PORTAUDIO_HEADER_PATH"
@@ -24,6 +24,6 @@ make -j$(nproc 2>/dev/null || echo 4)
 
 # Build the play_buffer example
 cd ..
-gcc -o play_buffer play_buffer.c -I./portaudio/include -L./build -lportaudio
+gcc -o play_buffer ../builder/play_buffer.c -I./include -L./build -lportaudio
 mkdir -p build/artifacts
 cp play_buffer build/artifacts/
