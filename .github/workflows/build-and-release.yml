@@ -52,27 +52,34 @@ jobs:
     needs: check-and-build
     if: needs.check-and-build.outputs.should-build == 'true'
     strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - name: Checkout builder
-        uses: actions/checkout@v4
-        with:
-          path: builder
-
-      - name: Checkout PortAudio (Ubuntu/macOS)
-        if: matrix.os != 'windows-latest'
         run: |
-          echo "Checking out PortAudio version: ${{ needs.check-and-build.outputs.version }}"
-          git clone --depth 1 --branch ${{ needs.check-and-build.outputs.version }} https://github.com/PortAudio/portaudio.git
-          cd portaudio
-          echo "PortAudio repository contents:"
-          ls -la
-
-      - name: Checkout PortAudio (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
+          sudo apt-get update && sudo apt-get install -y jq curl git
+          LATEST_COMMIT=$(git ls-remote https://github.com/PortAudio/portaudio.git HEAD | awk '{print $1}')
+          SHORT_COMMIT=${LATEST_COMMIT: -5}
+          DATE_TAG=$(date +"%Y%m")
+          BUILD_NUM=1
+          CUSTOM_TAG="$DATE_TAG.$SHORT_COMMIT.$BUILD_NUM"
+          if [ -f last_built.txt ]; then
+            LAST_BUILT=$(cat last_built.txt)
+            LAST_DATE=$(echo "$LAST_BUILT" | cut -d'.' -f1)
+            LAST_COMMIT=$(echo "$LAST_BUILT" | cut -d'.' -f2)
+            LAST_NUM=$(echo "$LAST_BUILT" | cut -d'.' -f3)
+            if [ "$DATE_TAG" = "$LAST_DATE" ] && [ "$SHORT_COMMIT" = "$LAST_COMMIT" ]; then
+              BUILD_NUM=$((LAST_NUM + 1))
+              CUSTOM_TAG="$DATE_TAG.$SHORT_COMMIT.$BUILD_NUM"
+            fi
+          fi
+          echo "Custom tag: $CUSTOM_TAG"
+          if [ -f last_built.txt ]; then
+            if [ "$CUSTOM_TAG" = "$(cat last_built.txt)" ]; then
+              echo "should_build=false" >> $GITHUB_OUTPUT
+            else
+              echo "should_build=true" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "should_build=true" >> $GITHUB_OUTPUT
+          fi
+          echo "version=$CUSTOM_TAG" >> $GITHUB_OUTPUT
           Write-Host "Checking out PortAudio version: ${{ needs.check-and-build.outputs.version }}"
           git clone --depth 1 --branch ${{ needs.check-and-build.outputs.version }} https://github.com/PortAudio/portaudio.git
           Set-Location portaudio
