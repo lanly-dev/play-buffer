@@ -6,6 +6,11 @@ set -e
 
 PLAY_BUFFER_PATH="../builder/play_buffer.c"
 
+# Change to project root directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$SCRIPT_DIR/../.."
+cd "$PROJECT_ROOT"
+
 # Check for portaudio.h header
 echo "Current working directory: $(pwd)"
 echo "Listing contents of ./portaudio/include:"
