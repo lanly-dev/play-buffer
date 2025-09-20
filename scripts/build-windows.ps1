@@ -23,11 +23,10 @@ $vcvars = "$installPath\VC\Auxiliary\Build\vcvars64.bat"
 $libFile = Get-ChildItem build -Recurse -Filter "*portaudio*.lib" | Select-Object -First 1
 if ($libFile) {
     Write-Host "Found PortAudio library at: $($libFile.FullName)"
-    $libPath = $libFile.DirectoryName
-    $libName = $libFile.BaseName
     
     Write-Host "Compiling play_buffer.exe..."
-    cmd /c "`"$vcvars`" && cl ..\builder\play_buffer.c /I .\include /link /LIBPATH:`"$libPath`" $($libFile.Name) /OUT:play_buffer.exe"
+    # Use the full path to the library file directly, like we do in macOS
+    cmd /c "`"$vcvars`" && cl ..\builder\play_buffer.c /I .\include /link `"$($libFile.FullName)`" /OUT:play_buffer.exe"
 } else {
     Write-Host "Error: Could not find PortAudio library file"
     exit 1
