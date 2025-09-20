@@ -158,7 +158,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: portaudio-${{ matrix.os }}-${{ needs.check-and-build.outputs.version }}
-          path: portaudio/build/artifacts/
+          path: portaudio/artifacts/
 
   release:
     needs: [check-and-build, build]
