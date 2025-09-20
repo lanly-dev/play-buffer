@@ -73,11 +73,12 @@ jobs:
       - name: Checkout PortAudio (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          echo "Checking out PortAudio version: ${{ needs.check-and-build.outputs.version }}"
+          Write-Host "Checking out PortAudio version: ${{ needs.check-and-build.outputs.version }}"
           git clone --depth 1 --branch ${{ needs.check-and-build.outputs.version }} https://github.com/PortAudio/portaudio.git
-          cd portaudio
-          echo "PortAudio repository contents:"
-          dir
+          Set-Location portaudio
+          Write-Host "PortAudio repository contents:"
+          Get-ChildItem
+        shell: pwsh
 
       - name: Install dependencies (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
@@ -107,11 +108,12 @@ jobs:
       - name: Build PortAudio (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          cd portaudio
-          echo "Building PortAudio on Windows"
-          powershell ../builder/scripts/build-windows.ps1
-          echo "Build completed. Contents of build directory:"
+          Set-Location portaudio
+          Write-Host "Building PortAudio on Windows"
+          ../builder/scripts/build-windows.ps1
+          Write-Host "Build completed. Contents of build directory:"
           Get-ChildItem build
+        shell: pwsh
 
       - name: Package artifacts (Ubuntu/macOS)
         if: matrix.os != 'windows-latest'
@@ -134,7 +136,7 @@ jobs:
       - name: Package artifacts (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          cd portaudio
+          Set-Location portaudio
           New-Item -ItemType Directory -Force -Path artifacts/include | Out-Null
           Copy-Item -Recurse -Force include/* artifacts/include/ -ErrorAction SilentlyContinue
           
@@ -148,6 +150,7 @@ jobs:
           # List what we packaged
           Write-Host "Packaged files:"
           Get-ChildItem artifacts/
+        shell: pwsh
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
