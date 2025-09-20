@@ -61,13 +61,23 @@ jobs:
         with:
           path: builder
 
-      - name: Checkout PortAudio
+      - name: Checkout PortAudio (Ubuntu/macOS)
+        if: matrix.os != 'windows-latest'
         run: |
           echo "Checking out PortAudio version: ${{ needs.check-and-build.outputs.version }}"
           git clone --depth 1 --branch ${{ needs.check-and-build.outputs.version }} https://github.com/PortAudio/portaudio.git
           cd portaudio
           echo "PortAudio repository contents:"
           ls -la
+
+      - name: Checkout PortAudio (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          echo "Checking out PortAudio version: ${{ needs.check-and-build.outputs.version }}"
+          git clone --depth 1 --branch ${{ needs.check-and-build.outputs.version }} https://github.com/PortAudio/portaudio.git
+          cd portaudio
+          echo "PortAudio repository contents:"
+          dir
 
       - name: Install dependencies (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
@@ -101,9 +111,10 @@ jobs:
           echo "Building PortAudio on Windows"
           powershell ../builder/scripts/build-windows.ps1
           echo "Build completed. Contents of build directory:"
-          dir build\
+          Get-ChildItem build
 
-      - name: Package artifacts
+      - name: Package artifacts (Ubuntu/macOS)
+        if: matrix.os != 'windows-latest'
         run: |
           cd portaudio
           mkdir -p artifacts/include
@@ -119,6 +130,24 @@ jobs:
           # List what we packaged
           echo "Packaged files:"
           ls -la artifacts/
+
+      - name: Package artifacts (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd portaudio
+          New-Item -ItemType Directory -Force -Path artifacts/include | Out-Null
+          Copy-Item -Recurse -Force include/* artifacts/include/ -ErrorAction SilentlyContinue
+          
+          # Find and copy built libraries
+          Get-ChildItem -Recurse -Filter "*.lib" | Copy-Item -Destination artifacts/ -ErrorAction SilentlyContinue
+          Get-ChildItem -Recurse -Filter "*.dll" | Copy-Item -Destination artifacts/ -ErrorAction SilentlyContinue
+          Get-ChildItem -Recurse -Filter "*.a" | Copy-Item -Destination artifacts/ -ErrorAction SilentlyContinue
+          Get-ChildItem -Recurse -Filter "*.so*" | Copy-Item -Destination artifacts/ -ErrorAction SilentlyContinue
+          Get-ChildItem -Recurse -Filter "*.dylib*" | Copy-Item -Destination artifacts/ -ErrorAction SilentlyContinue
+          
+          # List what we packaged
+          Write-Host "Packaged files:"
+          Get-ChildItem artifacts/
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
