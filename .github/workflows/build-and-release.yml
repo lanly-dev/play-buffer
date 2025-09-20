@@ -92,23 +92,7 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: |
           # CMake is pre-installed on Windows runners
-      - name: Build PortAudio (Ubuntu/macOS)
-        if: matrix.os != 'windows-latest'
-        run: |
-          echo "Building PortAudio on ${{ matrix.os }}"
-          set -x
-          bash scripts/build-${{ matrix.os == 'ubuntu-latest' && 'ubuntu' || 'macos' }}.sh || { echo 'Build failed!'; [ -f portaudio/build/CMakeFiles/CMakeError.log ] && cat portaudio/build/CMakeFiles/CMakeError.log; exit 1; }
-          set +x
-          echo "Build completed. Contents of build directory:"
-          ls -la portaudio/build/
-      - name: Build PortAudio (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          Write-Host "Building PortAudio on Windows"
-          scripts\build-windows.ps1
-          Write-Host "Build completed. Contents of build directory:"
-          Get-ChildItem portaudio
-        shell: pwsh
+
       - name: Package artifacts (Ubuntu/macOS)
         if: matrix.os != 'windows-latest'
         run: |
@@ -141,22 +125,6 @@ jobs:
         with:
           name: portaudio-${{ matrix.os }}-${{ needs.check-and-build.outputs.version }}-${{ github.job }}-${{ github.run_id }}
           path: portaudio/artifacts/
-
-      - name: Install dependencies (Ubuntu)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake build-essential
-
-      - name: Install dependencies (macOS)
-        if: matrix.os == 'macos-latest'
-        run: |
-          brew install cmake
-
-      - name: Install dependencies (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          # CMake is pre-installed on Windows runners
 
       - name: Build PortAudio (Ubuntu/macOS)
         if: matrix.os != 'windows-latest'
