@@ -7,14 +7,31 @@ cmake --build . --config Release
 # Build play_buffer.exe
 Set-Location ..
 
+# Debug: Check what was actually built
+Write-Host "Contents of build directory:"
+Get-ChildItem build -Recurse -Name "*.lib" | Write-Host
+Write-Host "Looking for PortAudio libraries..."
+Get-ChildItem build -Recurse -Filter "*.lib" | ForEach-Object { Write-Host $_.FullName }
+
 # Use Visual Studio's vcvars to setup environment, then compile
 Write-Host "Setting up Visual Studio environment..."
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
 $installPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
 $vcvars = "$installPath\VC\Auxiliary\Build\vcvars64.bat"
 
-Write-Host "Compiling play_buffer.exe..."
-cmd /c "`"$vcvars`" && cl ..\builder\play_buffer.c /I .\include /link /LIBPATH:build\Release portaudio_static.lib /OUT:play_buffer.exe"
+# Find the actual library file
+$libFile = Get-ChildItem build -Recurse -Filter "*portaudio*.lib" | Select-Object -First 1
+if ($libFile) {
+    Write-Host "Found PortAudio library at: $($libFile.FullName)"
+    $libPath = $libFile.DirectoryName
+    $libName = $libFile.BaseName
+    
+    Write-Host "Compiling play_buffer.exe..."
+    cmd /c "`"$vcvars`" && cl ..\builder\play_buffer.c /I .\include /link /LIBPATH:`"$libPath`" $($libFile.Name) /OUT:play_buffer.exe"
+} else {
+    Write-Host "Error: Could not find PortAudio library file"
+    exit 1
+}
 
 # Verify and copy the executable
 if (Test-Path "play_buffer.exe") {
