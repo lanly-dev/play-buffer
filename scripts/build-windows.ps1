@@ -20,15 +20,26 @@ $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.e
 $installPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
 $vcvars = "$installPath\VC\Auxiliary\Build\vcvars64.bat"
 
-# Find the actual library file
-$libFile = Get-ChildItem build -Recurse -Filter "*portaudio*.lib" | Select-Object -First 1
+# Prefer static library if available, otherwise fall back to import lib
+$libFile = Get-ChildItem build -Recurse -Filter "*portaudio_static*.lib" | Select-Object -First 1
+if (-not $libFile) { $libFile = Get-ChildItem build -Recurse -Filter "*portaudio*.lib" | Select-Object -First 1 }
+
 if ($libFile) {
     Write-Host "Found PortAudio library at: $($libFile.FullName)"
-    
+
+    # System libraries commonly required by PortAudio backends on Windows
+    $sysLibs = @(
+        'kernel32.lib','user32.lib','advapi32.lib','ole32.lib','oleaut32.lib','uuid.lib',
+        'winmm.lib','avrt.lib','mmdevapi.lib','ksuser.lib'
+    )
+
+    $sysLibsJoined = ($sysLibs -join ' ')
+    $linkLib = $libFile.FullName
+
     Write-Host "Compiling play_buffer.exe..."
-    # Use the full path to the library file directly, like we do in macOS
-    # Use /MD (dynamic CRT) to align with library build and add required Windows system libraries
-    cmd /c "`"$vcvars`" && cl /MD ..\builder\play_buffer.c /I .\include /link `"$($libFile.FullName)`" kernel32.lib user32.lib advapi32.lib ole32.lib winmm.lib msvcrt.lib vcruntime.lib ucrt.lib /OUT:play_buffer.exe"
+    $compileCmd = "`"$vcvars`" && cl /MD ..\builder\play_buffer.c /I .\include /link `"$linkLib`" $sysLibsJoined /OUT:play_buffer.exe"
+    Write-Host "Link command: $compileCmd"
+    cmd /c $compileCmd
 } else {
     Write-Host "Error: Could not find PortAudio library file"
     exit 1
