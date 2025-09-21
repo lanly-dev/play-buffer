@@ -1,1 +1,19 @@
 examples/*.exe
+
+# Build artifacts
+artifacts/
+build/
+*.exe
+*.o
+*.a
+*.lib
+*.dll
+*.so
+*.dylib
+
+# Local test builds
+play_buffer
+play_buffer.exe
+
+# PortAudio build (when building locally)
+portaudio/
