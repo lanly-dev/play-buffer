@@ -128,11 +128,19 @@ jobs:
         run: |
           cd portaudio
           mkdir -p artifacts
+          # Derive desired filename: pa_play_buffer.<os>.yymm.<6char-commit>.<increment>
+          VERSION="${{ needs.check-and-build.outputs.version }}"
+          DATE_TAG=$(echo "$VERSION" | cut -d'.' -f1)
+          YYMM=${DATE_TAG:2}
+          SHORT_COMMIT=$(echo "$VERSION" | cut -d'.' -f2)
+          INCR=$(echo "$VERSION" | cut -d'.' -f3)
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then OS_NAME=linux; else OS_NAME=macos; fi
+          NEWNAME="pa_play_buffer.${OS_NAME}.${YYMM}.${SHORT_COMMIT}.${INCR}"
 
-          # Copy only the play_buffer executable if it exists in build/artifacts
+          # Copy only the play_buffer executable if it exists in build/artifacts, renaming it
           if [ -f build/artifacts/play_buffer ]; then
-            cp build/artifacts/play_buffer artifacts/
-            echo "Copied play_buffer executable"
+            cp build/artifacts/play_buffer "artifacts/$NEWNAME"
+            echo "Packaged $NEWNAME"
           else
             echo "Warning: play_buffer executable not found in build/artifacts"
             ls -la build/artifacts/ || echo "build/artifacts directory not found"
@@ -147,11 +155,20 @@ jobs:
         run: |
           Set-Location portaudio
           New-Item -ItemType Directory -Force -Path artifacts | Out-Null
+          
+          # Derive desired filename: pa_play_buffer.windows.yymm.<6char-commit>.<increment>.exe
+          $version = "${{ needs.check-and-build.outputs.version }}"
+          $parts = $version.Split('.')
+          $date = $parts[0]
+          $yymm = $date.Substring(2)
+          $hash = $parts[1]
+          $inc = $parts[2]
+          $newname = "pa_play_buffer.windows.$yymm.$hash.$inc.exe"
 
-          # Copy only the play_buffer.exe executable if it exists in build/artifacts
+          # Copy only the play_buffer.exe executable if it exists in build/artifacts, renaming it
           if (Test-Path "build\artifacts\play_buffer.exe") {
-            Copy-Item "build\artifacts\play_buffer.exe" artifacts/
-            Write-Host "Copied play_buffer.exe executable"
+            Copy-Item "build\artifacts\play_buffer.exe" (Join-Path artifacts $newname)
+            Write-Host "Packaged $newname"
           } else {
             Write-Host "Warning: play_buffer.exe executable not found in build/artifacts"
             if (Test-Path "build\artifacts") {
@@ -197,9 +214,11 @@ jobs:
       - name: Create release
         run: |
           if ls artifacts/*/* 1> /dev/null 2>&1; then
+            COMMIT_SHA=$(git rev-parse HEAD)
+            COMMIT_URL="https://github.com/${GITHUB_REPOSITORY}/commit/$COMMIT_SHA"
             gh release create ${{ needs.check-and-build.outputs.version }} \
               --title "PortAudio ${{ needs.check-and-build.outputs.version }}" \
-              --notes "Automated build of PortAudio ${{ needs.check-and-build.outputs.version }}"
+              --notes "Automated build from PortAudio ${{ needs.check-and-build.outputs.version }}\n\nBuilt with commit: $COMMIT_URL"
           else
             echo "No artifacts found to upload. Skipping release."
             exit 0
@@ -211,11 +230,8 @@ jobs:
         run: |
           for file in artifacts/*/*; do
             if [ -f "$file" ]; then
-              parent=$(basename $(dirname "$file"))
-              base=$(basename "$file")
-              newname="${parent}-${base}"
-              cp "$file" "/tmp/$newname"
-              gh release upload ${{ needs.check-and-build.outputs.version }} "/tmp/$newname"
+              # Upload using the base filename so the asset name matches the requested pattern
+              gh release upload ${{ needs.check-and-build.outputs.version }} "$file"
             fi
           done
         env:
