@@ -45,7 +45,8 @@ $sysLibsJoined = ($sysLibs -join ' ')
 Write-Host "Compiling play_buffer.exe..."
 $includeDir = "portaudio\install\include"
 $sourceFile = "play_buffer.c"
-$versionDefine = "/DPLAYBUFFER_VERSION=`"$version`""
+# Properly escape the version string for Windows compiler
+$versionDefine = "/DPLAYBUFFER_VERSION=\`"$version\`""
 
 if ($vcvars) {
     $compileCmd = "`"$vcvars`" && cl /MD `"$sourceFile`" $versionDefine /I `"$includeDir`" /link `"$($paLib.FullName)`" $sysLibsJoined /OUT:play_buffer.exe"
