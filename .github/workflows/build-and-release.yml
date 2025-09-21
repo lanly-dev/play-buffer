@@ -51,7 +51,7 @@ jobs:
           
           # Check if we've already built this PortAudio commit
           if [ -f last_built.txt ]; then
-            LAST_BUILT=$(cat last_built.txt)
+            LAST_BUILT=$(cat last_built.txt | sed 's/PortAudio commit: //')
             if [ "$LATEST_COMMIT" = "$LAST_BUILT" ] && [ "${{ github.event_name }}" = "schedule" ]; then
               echo "should_build=false" >> $GITHUB_OUTPUT
               echo "No new PortAudio commits since last build ($SHORT_COMMIT)"
@@ -243,7 +243,16 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          echo ${{ needs.check-portaudio.outputs.portaudio-commit }} > last_built.txt
-          git add last_built.txt
-          git commit -m "Update last built PortAudio commit to ${{ needs.check-portaudio.outputs.portaudio-commit }}"
-          git push
+          
+          PORTAUDIO_COMMIT="${{ needs.check-portaudio.outputs.portaudio-commit }}"
+          echo "PortAudio commit: $PORTAUDIO_COMMIT" > last_built.txt
+          
+          # Only commit if there are changes
+          if git diff --quiet last_built.txt; then
+            echo "No changes to last_built.txt - already up to date"
+          else
+            git add last_built.txt
+            git commit -m "Update last built PortAudio commit to $PORTAUDIO_COMMIT"
+            git push
+            echo "Updated last_built.txt with commit: $PORTAUDIO_COMMIT"
+          fi
