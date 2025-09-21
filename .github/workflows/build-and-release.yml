@@ -1,4 +1,4 @@
-name: Build and Release PortAudio
+name: Build and Release PlayBuffer
 
 on:
   push:
@@ -6,179 +6,163 @@ on:
   pull_request:
     branches: [ main ]
   schedule:
-    - cron: '0 0 * * *'  # Run daily at midnight UTC
+    - cron: '0 0 * * *'  # Run daily at midnight UTC to check for new PortAudio commits
   workflow_dispatch:  # Allow manual trigger
 
 permissions:
-  contents: write  # allow creating releases and pushing last_built.txt
+  contents: write  # allow creating releases and updating last_built.txt
 
 jobs:
-  check-and-build:
+  check-portaudio:
     runs-on: ubuntu-latest
     outputs:
       should-build: ${{ steps.check.outputs.should_build }}
+      portaudio-commit: ${{ steps.check.outputs.portaudio_commit }}
       version: ${{ steps.check.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Check for new PortAudio release
+      - name: Check for new PortAudio commit
         id: check
         run: |
-          sudo apt-get update && sudo apt-get install -y jq curl git
+          # Get latest PortAudio commit
           LATEST_COMMIT=$(git ls-remote https://github.com/PortAudio/portaudio.git HEAD | awk '{print $1}')
-          SHORT_COMMIT=${LATEST_COMMIT: -6}
-          DATE_TAG=$(date +"%Y%m")
-          BUILD_NUM=1
-          while true; do
-            CUSTOM_TAG="$DATE_TAG.$SHORT_COMMIT.$BUILD_NUM"
-            TAG_EXISTS=$(curl -s https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/$CUSTOM_TAG -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" | jq -r .tag_name)
-            if [ "$TAG_EXISTS" = "$CUSTOM_TAG" ]; then
-              BUILD_NUM=$((BUILD_NUM + 1))
-            else
-              break
-            fi
-          done
-          echo "Custom tag: $CUSTOM_TAG"
+          SHORT_COMMIT=${LATEST_COMMIT:0:7}
+          
+          # Generate version tag
+          DATE_TAG=$(date +"%Y.%m.%d")
+          VERSION="v${DATE_TAG}-${SHORT_COMMIT}"
+          
+          echo "portaudio_commit=$LATEST_COMMIT" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          
+          # Check if we've already built this PortAudio commit
           if [ -f last_built.txt ]; then
-            if [ "$CUSTOM_TAG" = "$(cat last_built.txt)" ]; then
+            LAST_BUILT=$(cat last_built.txt)
+            if [ "$LATEST_COMMIT" = "$LAST_BUILT" ] && [ "${{ github.event_name }}" = "schedule" ]; then
               echo "should_build=false" >> $GITHUB_OUTPUT
+              echo "No new PortAudio commits since last build ($SHORT_COMMIT)"
             else
               echo "should_build=true" >> $GITHUB_OUTPUT
+              echo "New PortAudio commit detected: $SHORT_COMMIT"
             fi
           else
             echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "No previous build found, building PortAudio commit: $SHORT_COMMIT"
           fi
-          echo "version=$CUSTOM_TAG" >> $GITHUB_OUTPUT
 
   build:
-    needs: check-and-build
-    if: needs.check-and-build.outputs.should-build == 'true'
+    needs: check-portaudio
+    if: needs.check-portaudio.outputs.should-build == 'true' || github.event_name != 'schedule'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
-      - name: Checkout builder
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          path: builder
-      - name: Checkout PortAudio (Ubuntu/macOS)
-        if: matrix.os != 'windows-latest'
-        run: |
-          echo "Checking out latest PortAudio commit from default branch"
-          git clone --depth 1 --branch master https://github.com/PortAudio/portaudio.git
-          cd portaudio
-          echo "PortAudio repository contents:"
-          ls -la
-      - name: Checkout PortAudio (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          Write-Host "Checking out latest PortAudio commit from default branch"
-          git clone --depth 1 --branch master https://github.com/PortAudio/portaudio.git
-          Set-Location portaudio
-          Write-Host "PortAudio repository contents:"
-          Get-ChildItem
-        shell: pwsh
+
       - name: Install dependencies (Ubuntu)
         if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake build-essential libasound2-dev
+          sudo apt-get install -y cmake build-essential pkg-config libasound2-dev
+
       - name: Install dependencies (macOS)
         if: matrix.os == 'macos-latest'
         run: |
-          brew install cmake
+          brew install cmake pkg-config
+
       - name: Install dependencies (Windows)
         if: matrix.os == 'windows-latest'
         run: |
           # CMake is pre-installed on Windows runners
+        shell: pwsh
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: portaudio-${{ matrix.os }}-${{ needs.check-and-build.outputs.version }}-${{ github.job }}-${{ github.run_id }}
-          path: portaudio/artifacts/
-
-      - name: Build PortAudio (Ubuntu/macOS)
-        if: matrix.os != 'windows-latest'
+      - name: Build PortAudio from latest source
         run: |
+          # Clone latest PortAudio from master branch
+          git clone --depth 1 --branch master https://github.com/PortAudio/portaudio.git
           cd portaudio
-          echo "Building PortAudio on ${{ matrix.os }}"
-          set -x
-          bash ../builder/scripts/build-${{ matrix.os == 'ubuntu-latest' && 'ubuntu' || 'macos' }}.sh || { echo 'Build failed!'; [ -f build/CMakeFiles/CMakeError.log ] && cat build/CMakeFiles/CMakeError.log; exit 1; }
-          set +x
-          echo "Build completed. Contents of build directory:"
-          ls -la build/
+          mkdir build
+          cd build
+          
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../install
+            cmake --build . --config Release
+            cmake --install . --config Release
+          else
+            cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../install
+            make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
+            make install
+          fi
+        shell: bash
 
-      - name: Build PortAudio (Windows)
+      - name: Build PlayBuffer (Ubuntu)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          echo "Building PlayBuffer on Ubuntu"
+          export PKG_CONFIG_PATH="$PWD/portaudio/install/lib/pkgconfig:$PKG_CONFIG_PATH"
+          export LD_LIBRARY_PATH="$PWD/portaudio/install/lib:$LD_LIBRARY_PATH"
+          chmod +x scripts/build-ubuntu.sh
+          ./scripts/build-ubuntu.sh
+
+      - name: Build PlayBuffer (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          echo "Building PlayBuffer on macOS"
+          export PKG_CONFIG_PATH="$PWD/portaudio/install/lib/pkgconfig:$PKG_CONFIG_PATH"
+          export DYLD_LIBRARY_PATH="$PWD/portaudio/install/lib:$DYLD_LIBRARY_PATH"
+          chmod +x scripts/build-macos.sh
+          ./scripts/build-macos.sh
+
+      - name: Build PlayBuffer (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          Set-Location portaudio
-          Write-Host "Building PortAudio on Windows"
-          ../builder/scripts/build-windows.ps1
-          Write-Host "Build completed. Contents of build directory:"
-          Get-ChildItem .
+          Write-Host "Building PlayBuffer on Windows"
+          $env:CMAKE_PREFIX_PATH = "$PWD\portaudio\install"
+          .\scripts\build-windows.ps1
         shell: pwsh
 
       - name: Package artifacts (Ubuntu/macOS)
         if: matrix.os != 'windows-latest'
         run: |
-          cd portaudio
           mkdir -p artifacts
-          # Derive desired filename: playbuffer.<os>.yymm.<6char-commit>.<increment>
-          VERSION="${{ needs.check-and-build.outputs.version }}"
-          DATE_TAG=$(echo "$VERSION" | cut -d'.' -f1)
-          YYMM=${DATE_TAG:2}
-          SHORT_COMMIT=$(echo "$VERSION" | cut -d'.' -f2)
-          INCR=$(echo "$VERSION" | cut -d'.' -f3)
-          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then OS_NAME=lin; else OS_NAME=mac; fi
-          NEWNAME="playbuffer.${OS_NAME}.${YYMM}.${SHORT_COMMIT}.${INCR}"
-
-          # Copy only the play_buffer executable if it exists in build/artifacts, renaming it
-          if [ -f build/artifacts/play_buffer ]; then
-            cp build/artifacts/play_buffer "artifacts/$NEWNAME"
-            echo "Packaged $NEWNAME"
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then OS_NAME=linux; else OS_NAME=macos; fi
+          
+          # Copy the built executable
+          if [ -f play_buffer ]; then
+            cp play_buffer "artifacts/play_buffer_${OS_NAME}"
+            echo "Packaged play_buffer_${OS_NAME}"
+          elif [ -f build/play_buffer ]; then
+            cp build/play_buffer "artifacts/play_buffer_${OS_NAME}"
+            echo "Packaged play_buffer_${OS_NAME}"
           else
-            echo "Warning: play_buffer executable not found in build/artifacts"
-            ls -la build/artifacts/ || echo "build/artifacts directory not found"
+            echo "Warning: play_buffer executable not found"
+            find . -name "play_buffer" -type f || echo "No play_buffer found"
           fi
-
-          # List what we packaged
+          
           echo "Packaged files:"
           ls -la artifacts/
 
       - name: Package artifacts (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          Set-Location portaudio
           New-Item -ItemType Directory -Force -Path artifacts | Out-Null
-
-          # Derive desired filename: playbuffer.windows.yymm.<6char-commit>.<increment>.exe
-          $version = "${{ needs.check-and-build.outputs.version }}"
-          $parts = $version.Split('.')
-          $date = $parts[0]
-          $yymm = $date.Substring(2)
-          $hash = $parts[1]
-          $inc = $parts[2]
-          $newname = "playbuffer.win.$yymm.$hash.$inc.exe"
-
-          # Copy only the play_buffer.exe executable if it exists in build/artifacts, renaming it
-          if (Test-Path "build\artifacts\play_buffer.exe") {
-            Copy-Item "build\artifacts\play_buffer.exe" (Join-Path artifacts $newname)
-            Write-Host "Packaged $newname"
+          
+          # Copy the built executable
+          if (Test-Path "play_buffer.exe") {
+            Copy-Item "play_buffer.exe" "artifacts\play_buffer_windows.exe"
+            Write-Host "Packaged play_buffer_windows.exe"
+          } elseif (Test-Path "build\play_buffer.exe") {
+            Copy-Item "build\play_buffer.exe" "artifacts\play_buffer_windows.exe"
+            Write-Host "Packaged play_buffer_windows.exe"
           } else {
-            Write-Host "Warning: play_buffer.exe executable not found in build/artifacts"
-            if (Test-Path "build\artifacts") {
-              Get-ChildItem "build\artifacts"
-            } else {
-              Write-Host "build\artifacts directory not found"
-            }
+            Write-Host "Warning: play_buffer.exe executable not found"
+            Get-ChildItem -Recurse -Filter "play_buffer.exe" | Write-Host
           }
-
-          # List what we packaged
+          
           Write-Host "Packaged files:"
           Get-ChildItem artifacts/
         shell: pwsh
@@ -186,12 +170,12 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: portaudio-${{ matrix.os }}-${{ needs.check-and-build.outputs.version }}
-          path: portaudio/artifacts/
+          name: playbuffer-${{ matrix.os }}
+          path: artifacts/
 
   release:
-    needs: [check-and-build, build]
-    if: needs.check-and-build.outputs.should-build == 'true' && github.event_name != 'pull_request'
+    needs: [check-portaudio, build]
+    if: (needs.check-portaudio.outputs.should-build == 'true' || github.event_name != 'schedule') && github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -206,7 +190,8 @@ jobs:
         run: |
           echo "Artifacts directory contents before release:"
           if [ -d artifacts/ ]; then
-            ls -l artifacts/
+            ls -la artifacts/
+            find artifacts/ -type f
           else
             echo "No artifacts directory found."
           fi
@@ -216,10 +201,12 @@ jobs:
           if ls artifacts/*/* 1> /dev/null 2>&1; then
             COMMIT_SHA=$(git rev-parse HEAD)
             COMMIT_URL="https://github.com/${GITHUB_REPOSITORY}/commit/$COMMIT_SHA"
-            gh release create ${{ needs.check-and-build.outputs.version }} \
-              --title "PortAudio ${{ needs.check-and-build.outputs.version }}" \
-              --notes $'Automated build from PortAudio ${{ needs.check-and-build.outputs.version }}\n\nBuilt with commit: $COMMIT_URL'
-
+            PORTAUDIO_COMMIT="${{ needs.check-portaudio.outputs.portaudio-commit }}"
+            PORTAUDIO_SHORT="${PORTAUDIO_COMMIT:0:7}"
+            
+            gh release create ${{ needs.check-portaudio.outputs.version }} \
+              --title "PlayBuffer ${{ needs.check-portaudio.outputs.version }}" \
+              --notes $'Automated build of PlayBuffer with latest PortAudio\n\nPortAudio commit: https://github.com/PortAudio/portaudio/commit/'$PORTAUDIO_COMMIT$'\nPlayBuffer commit: '$COMMIT_URL
           else
             echo "No artifacts found to upload. Skipping release."
             exit 0
@@ -231,18 +218,17 @@ jobs:
         run: |
           for file in artifacts/*/*; do
             if [ -f "$file" ]; then
-              # Upload using the base filename so the asset name matches the requested pattern
-              gh release upload ${{ needs.check-and-build.outputs.version }} "$file"
+              gh release upload ${{ needs.check-portaudio.outputs.version }} "$file"
             fi
           done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Update last built
+      - name: Update last built commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          echo ${{ needs.check-and-build.outputs.version }} > last_built.txt
+          echo ${{ needs.check-portaudio.outputs.portaudio-commit }} > last_built.txt
           git add last_built.txt
-          git commit -m "Update last built to ${{ needs.check-and-build.outputs.version }}"
+          git commit -m "Update last built PortAudio commit to ${{ needs.check-portaudio.outputs.portaudio-commit }}"
           git push

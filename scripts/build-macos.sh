@@ -1,53 +1,35 @@
-#!/bin/sh
+#!/bin/bash
+set -e
 
-# To find where play_buffer.c is located, use:
-# find .. -name play_buffer.c
+echo "Building PlayBuffer with locally built PortAudio..."
 
-# Check for portaudio.h header
-echo "Current working directory: $(pwd)"
-echo "Listing contents of ./include:"
-ls -la ./include
-PORTAUDIO_HEADER_PATH="./include/portaudio.h"
-if [ ! -f "$PORTAUDIO_HEADER_PATH" ]; then
-	echo "Error: portaudio.h not found at $PORTAUDIO_HEADER_PATH"
-	echo "Please ensure PortAudio is downloaded and include/portaudio.h exists."
-	exit 1
-else
-	echo "Found portaudio.h at: $PORTAUDIO_HEADER_PATH"
-fi
-
-# Build PortAudio on macOS using CMake with policy flag
-mkdir -p build
-cd build
-cmake .. -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DPA_BUILD_SHARED=OFF -DPA_BUILD_STATIC=ON
-make -j$(nproc 2>/dev/null || echo 4)
-
-# Debug: List what was built
-echo "Contents of build directory:"
-ls -la
-echo "Looking for library files:"
-find . -name "*.a" -o -name "*.dylib" -o -name "*.so"
-
-# Build the play_buffer example
-cd ..
-
-# Verify source file exists
-SOURCE_FILE="../builder/play_buffer.c"
-if [ ! -f "$SOURCE_FILE" ]; then
-    echo "Error: Source file not found at $SOURCE_FILE"
-    echo "Current directory: $(pwd)"
-    echo "Contents of ../builder/:"
-    ls -la ../builder/
+# Check that PortAudio was built by CI workflow
+if [ ! -d "portaudio/install" ]; then
+    echo "Error: PortAudio not found. Expected at portaudio/install/"
     exit 1
 fi
-echo "Source file found: $SOURCE_FILE"
 
-# Find the actual library file
-PORTAUDIO_LIB=$(find ./build -name "libportaudio*.a" | head -n 1)
-if [ -z "$PORTAUDIO_LIB" ]; then
-    echo "Error: Could not find PortAudio static library"
+# Find PortAudio library
+PA_LIB=$(find portaudio/install/lib -name "libportaudio*.a" | head -n 1)
+if [ -z "$PA_LIB" ]; then
+    echo "Error: Could not find PortAudio static library in portaudio/install/lib"
     exit 1
 fi
+
+echo "Found PortAudio library: $PA_LIB"
+
+# Build play_buffer
+echo "Compiling play_buffer..."
+gcc -o play_buffer play_buffer.c \
+    -I portaudio/install/include \
+    "$PA_LIB" \
+    -framework CoreAudio -framework CoreFoundation -framework CoreServices
+
+# Create artifacts directory and copy executable  
+mkdir -p build/artifacts
+cp play_buffer build/artifacts/
+
+echo "PlayBuffer built successfully!"
 echo "Using PortAudio library: $PORTAUDIO_LIB"
 
 # Show the compilation command for debugging
