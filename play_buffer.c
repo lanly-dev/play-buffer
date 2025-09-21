@@ -30,18 +30,33 @@ int audio_finished = 0;
 void read_all_from_stdin() {
     size_t capacity = SAMPLE_RATE; // Start with 1 second capacity
     audio_buffer = malloc(capacity * sizeof(float));
+    if (!audio_buffer) {
+        printf("Failed to allocate initial buffer\n");
+        return;
+    }
 
     // Read in larger chunks for better performance
     #define CHUNK_SIZE 1024 // Read 1024 floats at a time
     float chunk[CHUNK_SIZE];
     size_t samples_read;
     size_t total_bytes = 0;
+    int read_count = 0;
+    
+    printf("Starting to read from stdin...\n");
     
     while ((samples_read = fread(chunk, sizeof(float), CHUNK_SIZE, stdin)) > 0) {
+        read_count++;
+        printf("Read %zu samples in chunk %d\n", samples_read, read_count);
+        
         // Ensure we have enough capacity
         while (buffer_size + samples_read > capacity) {
             capacity *= 2;
+            printf("Expanding buffer to %zu samples\n", capacity);
             audio_buffer = realloc(audio_buffer, capacity * sizeof(float));
+            if (!audio_buffer) {
+                printf("Failed to reallocate buffer\n");
+                return;
+            }
         }
         
         // Copy the chunk to our buffer
@@ -51,11 +66,12 @@ void read_all_from_stdin() {
         
         // If we read less than requested, we've reached EOF
         if (samples_read < CHUNK_SIZE) {
+            printf("Reached EOF (read %zu < %d)\n", samples_read, CHUNK_SIZE);
             break;
         }
     }
     
-    printf("Read %zu bytes (%zu samples) from stdin\n", total_bytes, buffer_size);
+    printf("Finished reading. Total: %zu bytes (%zu samples) in %d chunks\n", total_bytes, buffer_size, read_count);
 }
 
 static int paCallback(const void *input, void *output,
