@@ -32,12 +32,12 @@ void read_all_from_stdin() {
     audio_buffer = malloc(capacity * sizeof(float));
 
     // Read in larger chunks for better performance
-    const size_t chunk_size = 1024; // Read 1024 floats at a time
-    float chunk[chunk_size];
+    #define CHUNK_SIZE 1024 // Read 1024 floats at a time
+    float chunk[CHUNK_SIZE];
     size_t samples_read;
     size_t total_bytes = 0;
     
-    while ((samples_read = fread(chunk, sizeof(float), chunk_size, stdin)) > 0) {
+    while ((samples_read = fread(chunk, sizeof(float), CHUNK_SIZE, stdin)) > 0) {
         // Ensure we have enough capacity
         while (buffer_size + samples_read > capacity) {
             capacity *= 2;
@@ -50,7 +50,7 @@ void read_all_from_stdin() {
         total_bytes += samples_read * sizeof(float);
         
         // If we read less than requested, we've reached EOF
-        if (samples_read < chunk_size) {
+        if (samples_read < CHUNK_SIZE) {
             break;
         }
     }

@@ -1,4 +1,4 @@
-# play-buffer
+# PlayBuffer
 
 A simple cross-platform audio player that reads raw float audio samples from stdin and plays them through the default audio output device using PortAudio.
 
@@ -10,9 +10,11 @@ This utility allows you to pipe raw audio data (32-bit float samples) directly t
 
 - Reads raw 32-bit float audio samples from standard input
 - Plays audio at 44.1 kHz sample rate
-- 2-second playback duration (configurable in source)
+- Dynamic buffer allocation for audio of any length
 - Cross-platform support (Windows, Linux, macOS)
 - Uses PortAudio for reliable audio output
+- Version information embedded in binaries
+- Automated daily builds with latest PortAudio
 
 ## Building
 
@@ -20,7 +22,7 @@ This utility allows you to pipe raw audio data (32-bit float samples) directly t
 
 - CMake 3.10 or later
 - C compiler (GCC, Clang, or MSVC)
-- PortAudio library
+- PortAudio library (automatically built from source by scripts)
 
 ### Platform-specific build scripts
 
@@ -41,6 +43,8 @@ Use the provided build scripts for your platform:
 ./scripts/build-macos.sh
 ```
 
+The build scripts automatically download and compile the latest PortAudio from source, ensuring you have the most recent audio library.
+
 ## Usage
 
 The program reads raw 32-bit float audio samples from stdin and plays them:
@@ -59,6 +63,14 @@ cat audio_samples.raw | ./play_buffer
 - **Channels**: Mono
 - **Sample Format**: 32-bit floating point (-1.0 to 1.0)
 - **Byte Order**: Native endianness
+- **Input**: Raw binary data via stdin (no headers)
+
+## Version Information
+
+The executable includes embedded version information:
+
+- **Windows**: Visible in file properties (right-click → Properties → Details)
+- **Linux/macOS**: Use `strings play_buffer | grep -E "(PlayBuffer|PortAudio)"` or run the executable to see version info
 
 ## Configuration
 
@@ -66,11 +78,17 @@ Key parameters can be modified in `play_buffer.c`:
 
 - `SAMPLE_RATE`: Audio sample rate (default: 44100)
 - `FRAMES_PER_BUFFER`: Audio buffer size (default: 256)
-- `BUFFER_SIZE`: Total buffer size (default: SAMPLE_RATE * 2)
 
 ## Automated Builds
 
-This project includes GitHub Actions workflows that automatically build the project on multiple platforms and create releases when changes are pushed to the main branch.
+This project includes GitHub Actions workflows that:
+
+- **Monitor PortAudio daily** for new commits
+- **Build automatically** on Windows, Linux, and macOS
+- **Create releases** with version tags like `v2025.09.21-b0cc303.1`
+- **Embed version metadata** including PortAudio commit information
+
+Download the latest pre-built binaries from the [Releases page](https://github.com/lanly-dev/play-buffer/releases).
 
 ## Contributing
 
