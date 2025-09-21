@@ -23,7 +23,11 @@ echo "Compiling play_buffer..."
 gcc -o play_buffer play_buffer.c \
     -I portaudio/install/include \
     "$PA_LIB" \
-    -framework CoreAudio -framework CoreFoundation -framework CoreServices
+    -framework CoreAudio \
+    -framework CoreFoundation \
+    -framework CoreServices \
+    -framework AudioUnit \
+    -framework AudioToolbox
 
 # Create artifacts directory and copy executable  
 mkdir -p build/artifacts
