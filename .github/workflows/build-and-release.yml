@@ -128,14 +128,14 @@ jobs:
         run: |
           cd portaudio
           mkdir -p artifacts
-          # Derive desired filename: pa_play_buffer.<os>.yymm.<6char-commit>.<increment>
+          # Derive desired filename: playbuffer.<os>.yymm.<6char-commit>.<increment>
           VERSION="${{ needs.check-and-build.outputs.version }}"
           DATE_TAG=$(echo "$VERSION" | cut -d'.' -f1)
           YYMM=${DATE_TAG:2}
           SHORT_COMMIT=$(echo "$VERSION" | cut -d'.' -f2)
           INCR=$(echo "$VERSION" | cut -d'.' -f3)
-          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then OS_NAME=linux; else OS_NAME=macos; fi
-          NEWNAME="pa_play_buffer.${OS_NAME}.${YYMM}.${SHORT_COMMIT}.${INCR}"
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then OS_NAME=lin; else OS_NAME=mac; fi
+          NEWNAME="playbuffer.${OS_NAME}.${YYMM}.${SHORT_COMMIT}.${INCR}"
 
           # Copy only the play_buffer executable if it exists in build/artifacts, renaming it
           if [ -f build/artifacts/play_buffer ]; then
@@ -155,15 +155,15 @@ jobs:
         run: |
           Set-Location portaudio
           New-Item -ItemType Directory -Force -Path artifacts | Out-Null
-          
-          # Derive desired filename: pa_play_buffer.windows.yymm.<6char-commit>.<increment>.exe
+
+          # Derive desired filename: playbuffer.windows.yymm.<6char-commit>.<increment>.exe
           $version = "${{ needs.check-and-build.outputs.version }}"
           $parts = $version.Split('.')
           $date = $parts[0]
           $yymm = $date.Substring(2)
           $hash = $parts[1]
           $inc = $parts[2]
-          $newname = "pa_play_buffer.windows.$yymm.$hash.$inc.exe"
+          $newname = "playbuffer.win.$yymm.$hash.$inc.exe"
 
           # Copy only the play_buffer.exe executable if it exists in build/artifacts, renaming it
           if (Test-Path "build\artifacts\play_buffer.exe") {
@@ -218,7 +218,8 @@ jobs:
             COMMIT_URL="https://github.com/${GITHUB_REPOSITORY}/commit/$COMMIT_SHA"
             gh release create ${{ needs.check-and-build.outputs.version }} \
               --title "PortAudio ${{ needs.check-and-build.outputs.version }}" \
-              --notes "Automated build from PortAudio ${{ needs.check-and-build.outputs.version }}\n\nBuilt with commit: $COMMIT_URL"
+              --notes $'Automated build from PortAudio ${{ needs.check-and-build.outputs.version }}\n\nBuilt with commit: $COMMIT_URL'
+
           else
             echo "No artifacts found to upload. Skipping release."
             exit 0
