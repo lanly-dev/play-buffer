@@ -22,6 +22,8 @@ function playAudio(audioData) {
     return
   }
 
+  console.log(`Generated ${audioData.length} samples (${(audioData.length / 44100).toFixed(2)} seconds)`)
+
   const player = spawn(exe, [], { stdio: ['pipe', 'inherit', 'inherit'] })
 
   player.on('error', (err) => {
@@ -29,7 +31,7 @@ function playAudio(audioData) {
   })
 
   player.stdin.on('error', (err) => {
-    console.log('Stdin error (process may have closed early):', err.message)
+    console.log('Stdin error:', err.message)
   })
 
   try {

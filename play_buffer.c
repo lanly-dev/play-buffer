@@ -31,13 +31,17 @@ void read_all_from_stdin() {
     audio_buffer = malloc(capacity * sizeof(float));
 
     float sample;
+    size_t bytes_read = 0;
     while (fread(&sample, sizeof(float), 1, stdin) == 1) {
         if (buffer_size >= capacity) {
             capacity *= 2;
             audio_buffer = realloc(audio_buffer, capacity * sizeof(float));
         }
         audio_buffer[buffer_size++] = sample;
+        bytes_read += sizeof(float);
     }
+    
+    printf("Read %zu bytes (%zu samples) from stdin\n", bytes_read, buffer_size);
 }
 
 static int paCallback(const void *input, void *output,
