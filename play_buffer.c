@@ -94,6 +94,12 @@ static int paCallback(const void *input, void *output,
 }
 
 int main() {
+    // On Windows, set stdin to binary mode
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+    _setmode(_fileno(stdin), _O_BINARY);
+#endif
     printf("PlayBuffer %s\n", PLAYBUFFER_VERSION);
     printf("Built with PortAudio commit: %s\n", PORTAUDIO_COMMIT);
 
