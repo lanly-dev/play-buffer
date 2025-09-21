@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <portaudio.h>
 
 #define SAMPLE_RATE 44100
@@ -30,18 +31,31 @@ void read_all_from_stdin() {
     size_t capacity = SAMPLE_RATE; // Start with 1 second capacity
     audio_buffer = malloc(capacity * sizeof(float));
 
-    float sample;
-    size_t bytes_read = 0;
-    while (fread(&sample, sizeof(float), 1, stdin) == 1) {
-        if (buffer_size >= capacity) {
+    // Read in larger chunks for better performance
+    const size_t chunk_size = 1024; // Read 1024 floats at a time
+    float chunk[chunk_size];
+    size_t samples_read;
+    size_t total_bytes = 0;
+    
+    while ((samples_read = fread(chunk, sizeof(float), chunk_size, stdin)) > 0) {
+        // Ensure we have enough capacity
+        while (buffer_size + samples_read > capacity) {
             capacity *= 2;
             audio_buffer = realloc(audio_buffer, capacity * sizeof(float));
         }
-        audio_buffer[buffer_size++] = sample;
-        bytes_read += sizeof(float);
+        
+        // Copy the chunk to our buffer
+        memcpy(audio_buffer + buffer_size, chunk, samples_read * sizeof(float));
+        buffer_size += samples_read;
+        total_bytes += samples_read * sizeof(float);
+        
+        // If we read less than requested, we've reached EOF
+        if (samples_read < chunk_size) {
+            break;
+        }
     }
     
-    printf("Read %zu bytes (%zu samples) from stdin\n", bytes_read, buffer_size);
+    printf("Read %zu bytes (%zu samples) from stdin\n", total_bytes, buffer_size);
 }
 
 static int paCallback(const void *input, void *output,

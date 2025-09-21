@@ -30,13 +30,28 @@ function playAudio(audioData) {
     console.log('Failed to start play_buffer:', err.message)
   })
 
+  player.on('close', (code) => {
+    console.log(`play_buffer process exited with code ${code}`)
+  })
+
   player.stdin.on('error', (err) => {
     console.log('Stdin error:', err.message)
   })
 
+  player.stdin.on('close', () => {
+    console.log('Stdin closed')
+  })
+
   try {
-    player.stdin.write(Buffer.from(audioData.buffer))
+    // Convert Float32Array to Buffer using the typed array view
+    const buffer = Buffer.from(new Uint8Array(audioData.buffer, audioData.byteOffset, audioData.byteLength))
+    
+    console.log(`Sending ${buffer.length} bytes to play_buffer`)
+    console.log(`Expected: ${audioData.length * 4} bytes`)
+    
+    player.stdin.write(buffer)
     player.stdin.end()
+    console.log('Data written and stdin closed')
   } catch (err) {
     console.log('Error writing audio data:', err.message)
   }
