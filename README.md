@@ -1,26 +1,77 @@
-# PortAudio Builder
+# play-buffer
 
-This repository automatically monitors the [PortAudio](https://github.com/PortAudio/portaudio) repository for new releases. When a new release is detected, it triggers a build process across multiple platforms (Windows, Ubuntu, macOS) and creates a new release with the built artifacts.
+A simple cross-platform audio player that reads raw float audio samples from stdin and plays them through the default audio output device using PortAudio.
 
 ## Purpose
 
-PortAudio is a cross-platform audio I/O library. This builder ensures that pre-built binaries are available for each new version, making it easier for developers to integrate PortAudio without needing to build from source.
+This utility allows you to pipe raw audio data (32-bit float samples) directly to your speakers or headphones. It's useful for testing audio processing pipelines, debugging audio streams, or playing programmatically generated audio data.
 
-## How it works
+## Features
 
-- A GitHub Actions workflow runs daily to check for new PortAudio releases.
-- If a new release is found, it clones the PortAudio repository at that tag.
-- Builds the library using CMake on Windows (MSVC), Ubuntu (GCC), and macOS (Clang).
-- Creates a new release in this repository with the built static and shared libraries, headers, and other artifacts.
+- Reads raw 32-bit float audio samples from standard input
+- Plays audio at 44.1 kHz sample rate
+- 2-second playback duration (configurable in source)
+- Cross-platform support (Windows, Linux, macOS)
+- Uses PortAudio for reliable audio output
 
-## Releases
+## Building
 
-Releases in this repository correspond to PortAudio versions. Each release contains:
-- Static libraries (.lib, .a)
-- Shared libraries (.dll, .so, .dylib)
-- Header files
-- Build logs
+### Prerequisites
+
+- CMake 3.10 or later
+- C compiler (GCC, Clang, or MSVC)
+- PortAudio library
+
+### Platform-specific build scripts
+
+Use the provided build scripts for your platform:
+
+#### Windows
+```powershell
+.\scripts\build-windows.ps1
+```
+
+#### Ubuntu/Linux
+```bash
+./scripts/build-ubuntu.sh
+```
+
+#### macOS
+```bash
+./scripts/build-macos.sh
+```
+
+## Usage
+
+The program reads raw 32-bit float audio samples from stdin and plays them:
+
+```bash
+# Example: Generate and play a sine wave
+your_audio_generator | ./play_buffer
+
+# Example: Play raw audio data from a file
+cat audio_samples.raw | ./play_buffer
+```
+
+### Audio Format
+
+- **Sample Rate**: 44,100 Hz
+- **Channels**: Mono
+- **Sample Format**: 32-bit floating point (-1.0 to 1.0)
+- **Byte Order**: Native endianness
+
+## Configuration
+
+Key parameters can be modified in `play_buffer.c`:
+
+- `SAMPLE_RATE`: Audio sample rate (default: 44100)
+- `FRAMES_PER_BUFFER`: Audio buffer size (default: 256)
+- `BUFFER_SIZE`: Total buffer size (default: SAMPLE_RATE * 2)
+
+## Automated Builds
+
+This project includes GitHub Actions workflows that automatically build the project on multiple platforms and create releases when changes are pushed to the main branch.
 
 ## Contributing
 
-This repository is automated. To suggest changes to the build process, open an issue or pull request.
+Contributions are welcome! Please feel free to submit issues or pull requests to improve the functionality or add new features.
