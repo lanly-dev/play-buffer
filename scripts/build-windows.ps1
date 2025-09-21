@@ -1,6 +1,13 @@
 # Build PlayBuffer on Windows
 Write-Host "Building PlayBuffer with locally built PortAudio..."
 
+# Get version from environment or generate default
+$version = $env:PLAYBUFFER_VERSION
+if (-not $version) {
+    $version = "dev-build"
+}
+Write-Host "Building version: $version"
+
 # PortAudio should already be built by the CI workflow at ./portaudio/install/
 if (-not (Test-Path "portaudio\install\lib")) {
     Write-Host "Error: PortAudio not found. Expected at portaudio\install\"
@@ -34,15 +41,16 @@ $sysLibs = @(
 )
 $sysLibsJoined = ($sysLibs -join ' ')
 
-# Compile play_buffer.exe
+# Compile play_buffer.exe with version defines
 Write-Host "Compiling play_buffer.exe..."
 $includeDir = "portaudio\install\include"
 $sourceFile = "play_buffer.c"
+$versionDefine = "/DPLAYBUFFER_VERSION=`"$version`""
 
 if ($vcvars) {
-    $compileCmd = "`"$vcvars`" && cl /MD `"$sourceFile`" /I `"$includeDir`" /link `"$($paLib.FullName)`" $sysLibsJoined /OUT:play_buffer.exe"
+    $compileCmd = "`"$vcvars`" && cl /MD `"$sourceFile`" $versionDefine /I `"$includeDir`" /link `"$($paLib.FullName)`" $sysLibsJoined /OUT:play_buffer.exe"
 } else {
-    $compileCmd = "cl /MD `"$sourceFile`" /I `"$includeDir`" /link `"$($paLib.FullName)`" $sysLibsJoined /OUT:play_buffer.exe"
+    $compileCmd = "cl /MD `"$sourceFile`" $versionDefine /I `"$includeDir`" /link `"$($paLib.FullName)`" $sysLibsJoined /OUT:play_buffer.exe"
 }
 
 Write-Host "Compile command: $compileCmd"

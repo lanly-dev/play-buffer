@@ -3,6 +3,10 @@ set -e
 
 echo "Building PlayBuffer with locally built PortAudio..."
 
+# Get version from environment or generate default
+VERSION=${PLAYBUFFER_VERSION:-"dev-build"}
+echo "Building version: $VERSION"
+
 # Check that PortAudio was built by CI workflow
 if [ ! -d "portaudio/install" ]; then
     echo "Error: PortAudio not found. Expected at portaudio/install/"
@@ -18,9 +22,10 @@ fi
 
 echo "Found PortAudio library: $PA_LIB"
 
-# Build play_buffer
+# Build play_buffer with version information
 echo "Compiling play_buffer..."
 gcc -o play_buffer play_buffer.c \
+    -DPLAYBUFFER_VERSION="\"$VERSION\"" \
     -I portaudio/install/include \
     "$PA_LIB" \
     -framework CoreAudio \

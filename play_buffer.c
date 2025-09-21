@@ -5,6 +5,10 @@
 #define SAMPLE_RATE 44100
 #define FRAMES_PER_BUFFER 256
 
+#ifndef PLAYBUFFER_VERSION
+#define PLAYBUFFER_VERSION "unknown"
+#endif
+
 float *audio_buffer = NULL;
 size_t buffer_size = 0;
 size_t audio_index = 0;
@@ -45,6 +49,8 @@ static int paCallback(const void *input, void *output,
 }
 
 int main() {
+    printf("PlayBuffer %s\n", PLAYBUFFER_VERSION);
+    
     // Read all audio data from stdin
     read_all_from_stdin();
 
