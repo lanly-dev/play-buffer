@@ -89,7 +89,11 @@ $versionRc | Out-File -FilePath "version.rc" -Encoding ASCII
 
 # Compile the resource file
 Write-Host "Compiling resource file..."
-$rcCmd = "rc version.rc"
+if ($vcvars) {
+    $rcCmd = "`"$vcvars`" && rc version.rc"
+} else {
+    $rcCmd = "rc version.rc"
+}
 Write-Host "Resource command: $rcCmd"
 $rcResult = cmd /c $rcCmd
 if ($LASTEXITCODE -ne 0) {
