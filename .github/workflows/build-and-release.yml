@@ -118,6 +118,7 @@ jobs:
           export PKG_CONFIG_PATH="$PWD/portaudio/install/lib/pkgconfig:$PKG_CONFIG_PATH"
           export LD_LIBRARY_PATH="$PWD/portaudio/install/lib:$LD_LIBRARY_PATH"
           export PLAYBUFFER_VERSION="${{ needs.check-portaudio.outputs.version }}"
+          export PORTAUDIO_COMMIT="${{ needs.check-portaudio.outputs.portaudio-commit }}"
           chmod +x scripts/build-ubuntu.sh
           ./scripts/build-ubuntu.sh
 
@@ -128,6 +129,7 @@ jobs:
           export PKG_CONFIG_PATH="$PWD/portaudio/install/lib/pkgconfig:$PKG_CONFIG_PATH"
           export DYLD_LIBRARY_PATH="$PWD/portaudio/install/lib:$DYLD_LIBRARY_PATH"
           export PLAYBUFFER_VERSION="${{ needs.check-portaudio.outputs.version }}"
+          export PORTAUDIO_COMMIT="${{ needs.check-portaudio.outputs.portaudio-commit }}"
           chmod +x scripts/build-macos.sh
           ./scripts/build-macos.sh
 
@@ -137,6 +139,7 @@ jobs:
           Write-Host "Building PlayBuffer on Windows"
           $env:CMAKE_PREFIX_PATH = "$PWD\portaudio\install"
           $env:PLAYBUFFER_VERSION = "${{ needs.check-portaudio.outputs.version }}"
+          $env:PORTAUDIO_COMMIT = "${{ needs.check-portaudio.outputs.portaudio-commit }}"
           .\scripts\build-windows.ps1
         shell: pwsh
 

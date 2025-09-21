@@ -9,6 +9,17 @@
 #define PLAYBUFFER_VERSION "unknown"
 #endif
 
+#ifndef PORTAUDIO_COMMIT
+#define PORTAUDIO_COMMIT "unknown"
+#endif
+
+// Embedded version strings (visible with 'strings' command on Linux/macOS)
+static const char* version_info[] = {
+    "PlayBuffer-Version: " PLAYBUFFER_VERSION,
+    "PortAudio-Commit: " PORTAUDIO_COMMIT,
+    NULL
+};
+
 float *audio_buffer = NULL;
 size_t buffer_size = 0;
 size_t audio_index = 0;
@@ -50,7 +61,8 @@ static int paCallback(const void *input, void *output,
 
 int main() {
     printf("PlayBuffer %s\n", PLAYBUFFER_VERSION);
-    
+    printf("Built with PortAudio commit: %s\n", PORTAUDIO_COMMIT);
+
     // Read all audio data from stdin
     read_all_from_stdin();
 

@@ -8,6 +8,13 @@ if (-not $version) {
 }
 Write-Host "Building version: $version"
 
+# Get PortAudio commit from environment
+$portaudioCommit = $env:PORTAUDIO_COMMIT
+if (-not $portaudioCommit) {
+    $portaudioCommit = "unknown"
+}
+Write-Host "PortAudio commit: $portaudioCommit"
+
 # PortAudio should already be built by the CI workflow at ./portaudio/install/
 if (-not (Test-Path "portaudio\install\lib")) {
     Write-Host "Error: PortAudio not found. Expected at portaudio\install\"
@@ -47,11 +54,54 @@ $includeDir = "portaudio\install\include"
 $sourceFile = "play_buffer.c"
 # Properly escape the version string for Windows compiler
 $versionDefine = "/DPLAYBUFFER_VERSION=\`"$version\`""
+$portaudioDefine = "/DPORTAUDIO_COMMIT=\`"$portaudioCommit\`""
+
+# Create version resource file inline
+Write-Host "Creating version resource..."
+$versionRc = @"
+#include <windows.h>
+
+VS_VERSION_INFO VERSIONINFO
+FILEVERSION 1,0,0,0
+PRODUCTVERSION 1,0,0,0
+FILEFLAGSMASK VS_FFI_FILEFLAGSMASK
+FILEFLAGS 0x0L
+FILEOS VOS__WINDOWS32
+FILETYPE VFT_APP
+FILESUBTYPE VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904b0"
+        BEGIN
+            VALUE "FileVersion", "$version"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END
+"@
+
+# Write the resource file
+$versionRc | Out-File -FilePath "version.rc" -Encoding ASCII
+
+# Compile the resource file
+Write-Host "Compiling resource file..."
+$rcCmd = "rc version.rc"
+Write-Host "Resource command: $rcCmd"
+$rcResult = cmd /c $rcCmd
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "Resource compilation failed with exit code: $LASTEXITCODE"
+    Write-Host "Output: $rcResult"
+    exit 1
+}
 
 if ($vcvars) {
-    $compileCmd = "`"$vcvars`" && cl /MD `"$sourceFile`" $versionDefine /I `"$includeDir`" /link `"$($paLib.FullName)`" $sysLibsJoined /OUT:play_buffer.exe"
+    $compileCmd = "`"$vcvars`" && cl /MD `"$sourceFile`" $versionDefine $portaudioDefine /I `"$includeDir`" /link `"$($paLib.FullName)`" $sysLibsJoined version.res /OUT:play_buffer.exe"
 } else {
-    $compileCmd = "cl /MD `"$sourceFile`" $versionDefine /I `"$includeDir`" /link `"$($paLib.FullName)`" $sysLibsJoined /OUT:play_buffer.exe"
+    $compileCmd = "cl /MD `"$sourceFile`" $versionDefine $portaudioDefine /I `"$includeDir`" /link `"$($paLib.FullName)`" $sysLibsJoined version.res /OUT:play_buffer.exe"
 }
 
 Write-Host "Compile command: $compileCmd"

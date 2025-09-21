@@ -7,6 +7,10 @@ echo "Building PlayBuffer with locally built PortAudio..."
 VERSION=${PLAYBUFFER_VERSION:-"dev-build"}
 echo "Building version: $VERSION"
 
+# Get PortAudio commit from environment
+PORTAUDIO_COMMIT=${PORTAUDIO_COMMIT:-"unknown"}
+echo "PortAudio commit: $PORTAUDIO_COMMIT"
+
 # Check that PortAudio was built by CI workflow
 if [ ! -d "portaudio/install" ]; then
     echo "Error: PortAudio not found. Expected at portaudio/install/"
@@ -26,6 +30,7 @@ echo "Found PortAudio library: $PA_LIB"
 echo "Compiling play_buffer..."
 gcc -o play_buffer play_buffer.c \
     -DPLAYBUFFER_VERSION="\"$VERSION\"" \
+    -DPORTAUDIO_COMMIT="\"$PORTAUDIO_COMMIT\"" \
     -I portaudio/install/include \
     "$PA_LIB" \
     -framework CoreAudio \
@@ -34,7 +39,7 @@ gcc -o play_buffer play_buffer.c \
     -framework AudioUnit \
     -framework AudioToolbox
 
-# Create artifacts directory and copy executable  
+# Create artifacts directory and copy executable
 mkdir -p build/artifacts
 cp play_buffer build/artifacts/
 
