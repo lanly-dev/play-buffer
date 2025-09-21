@@ -71,7 +71,7 @@ int main() {
         return 1;
     }
 
-    printf("Playing %zu samples (%.2f seconds)\n", buffer_size, (float)buffer_size / SAMPLE_RATE);
+    printf("Playing %zu samples (%.4f seconds)\n", buffer_size, (float)buffer_size / SAMPLE_RATE);
 
     Pa_Initialize();
     PaStream *stream;

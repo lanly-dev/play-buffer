@@ -15,23 +15,23 @@ function generateTone(freq, duration = 1, amp = 0.2) {
 }
 
 function playAudio(audioData) {
-  const exe = './playbuffer.exe'
+  const exe = './play_buffer.exe'
 
   if (!fs.existsSync(exe)) {
-    console.log('playbuffer.exe not found - build it first')
+    console.log('play_buffer.exe not found - build it first')
     return
   }
 
   const player = spawn(exe, [], { stdio: ['pipe', 'inherit', 'inherit'] })
-  
+
   player.on('error', (err) => {
-    console.log('Failed to start playbuffer:', err.message)
+    console.log('Failed to start play_buffer:', err.message)
   })
-  
+
   player.stdin.on('error', (err) => {
     console.log('Stdin error (process may have closed early):', err.message)
   })
-  
+
   try {
     player.stdin.write(Buffer.from(audioData.buffer))
     player.stdin.end()
