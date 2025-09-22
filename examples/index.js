@@ -28,9 +28,9 @@ function generateMelody() {
   // Happy Birthday melody (notes and durations in seconds)
   // Each tuple: [note, duration]
   const melody = [
-    [NOTES.G4, 0.4], [NOTES.G4, 0.4], [NOTES.A4, 0.8], [NOTES.G4, 0.8], [NOTES.C5, 0.8], [NOTES.B4, 1.2]
-    [NOTES.G4, 0.4], [NOTES.G4, 0.4], [NOTES.A4, 0.8], [NOTES.G4, 0.8], [NOTES.D5, 0.8], [NOTES.C5, 1.2]
-    [NOTES.G4, 0.4], [NOTES.G4, 0.4], [NOTES.G5, 0.8], [NOTES.E5, 0.8], [NOTES.C5, 0.8], [NOTES.B4, 0.8], [NOTES.A4, 1.2]
+    [NOTES.G4, 0.4], [NOTES.G4, 0.4], [NOTES.A4, 0.8], [NOTES.G4, 0.8], [NOTES.C5, 0.8], [NOTES.B4, 1.2],
+    [NOTES.G4, 0.4], [NOTES.G4, 0.4], [NOTES.A4, 0.8], [NOTES.G4, 0.8], [NOTES.D5, 0.8], [NOTES.C5, 1.2],
+    [NOTES.G4, 0.4], [NOTES.G4, 0.4], [NOTES.G5, 0.8], [NOTES.E5, 0.8], [NOTES.C5, 0.8], [NOTES.B4, 0.8], [NOTES.A4, 1.2],
     [NOTES.F5, 0.4], [NOTES.F5, 0.4], [NOTES.E5, 0.8], [NOTES.C5, 0.8], [NOTES.D5, 0.8], [NOTES.C5, 1.2]
   ]
 
