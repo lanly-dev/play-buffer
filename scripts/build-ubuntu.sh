@@ -26,6 +26,10 @@ fi
 
 echo "Found PortAudio library: $PA_LIB"
 
+# Skip unnecessary package updates and man-db indexing
+export MAN_DISABLE=true
+export DEBIAN_FRONTEND=noninteractive
+
 # Build play_buffer with version information
 echo "Compiling play_buffer..."
 gcc -o play_buffer play_buffer.c \
