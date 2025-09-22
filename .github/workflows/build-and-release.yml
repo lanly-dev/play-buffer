@@ -84,7 +84,7 @@ jobs:
       - name: Install dependencies (macOS)
         if: matrix.os == 'macos-latest'
         run: |
-          brew install cmake pkg-config
+          # Nothing to install - pkgconf and cmake are pre-installed on macOS runners
 
       - name: Install dependencies (Windows)
         if: matrix.os == 'windows-latest'
@@ -231,9 +231,18 @@ jobs:
             PORTAUDIO_COMMIT="${{ needs.check-portaudio.outputs.portaudio-commit }}"
             PORTAUDIO_SHORT="${PORTAUDIO_COMMIT:0:7}"
 
+            # Link to the specific Actions run for traceability
+            RUN_URL="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${{ github.run_id }}"
+
+            # Build markdown notes where the run number text is a clickable link
+            NOTES=$'Automated build of PlayBuffer with latest PortAudio\n\n'
+            NOTES+=$'PortAudio commit: https://github.com/PortAudio/portaudio/commit/'$PORTAUDIO_COMMIT$'\n'
+            NOTES+=$'PlayBuffer commit: '$COMMIT_URL$'\n\n'
+            NOTES+=$'GitHub Actions run: ['"#${{ github.run_number }}"']('$RUN_URL$')\n'
+
             gh release create ${{ needs.check-portaudio.outputs.version }} \
               --title "PlayBuffer ${{ needs.check-portaudio.outputs.version }} (run #${{ github.run_number }})" \
-              --notes $'Automated build of PlayBuffer with latest PortAudio\n\nPortAudio commit: https://github.com/PortAudio/portaudio/commit/'$PORTAUDIO_COMMIT$'\nPlayBuffer commit: '$COMMIT_URL$'\n\nGitHub Actions run number: '${{ github.run_number }}
+              --notes "$NOTES"
           else
             echo "No artifacts found to upload. Skipping release."
             exit 0
