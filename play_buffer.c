@@ -26,7 +26,11 @@ size_t buffer_size = 0;
 size_t audio_index = 0;
 int audio_finished = 0;
 
-// Read all available float samples from stdin
+// Streaming mode: read and play continuously
+// Can be enabled with --stream command line argument
+#define DEFAULT_STREAMING_MODE 0  // Default mode (can be overridden by --stream)
+
+// Read all available float samples from stdin (original mode)
 void read_all_from_stdin() {
     size_t capacity = SAMPLE_RATE; // Start with 1 second capacity
     audio_buffer = malloc(capacity * sizeof(float));
@@ -41,13 +45,13 @@ void read_all_from_stdin() {
     size_t samples_read;
     size_t total_bytes = 0;
     int read_count = 0;
-    
+
     printf("Starting to read from stdin...\n");
-    
+
     while ((samples_read = fread(chunk, sizeof(float), CHUNK_SIZE, stdin)) > 0) {
         read_count++;
         printf("Read %zu samples in chunk %d\n", samples_read, read_count);
-        
+
         // Ensure we have enough capacity
         while (buffer_size + samples_read > capacity) {
             capacity *= 2;
@@ -58,19 +62,18 @@ void read_all_from_stdin() {
                 return;
             }
         }
-        
+
         // Copy the chunk to our buffer
         memcpy(audio_buffer + buffer_size, chunk, samples_read * sizeof(float));
         buffer_size += samples_read;
         total_bytes += samples_read * sizeof(float);
-        
+
         // If we read less than requested, we've reached EOF
         if (samples_read < CHUNK_SIZE) {
             printf("Reached EOF (read %zu < %d)\n", samples_read, CHUNK_SIZE);
             break;
         }
     }
-    
     printf("Finished reading. Total: %zu bytes (%zu samples) in %d chunks\n", total_bytes, buffer_size, read_count);
 }
 
@@ -93,41 +96,85 @@ static int paCallback(const void *input, void *output,
     return audio_finished ? paComplete : paContinue;
 }
 
-int main() {
-    // On Windows, set stdin to binary mode
-#ifdef _WIN32
-#include <fcntl.h>
-#include <io.h>
-    _setmode(_fileno(stdin), _O_BINARY);
-#endif
-    printf("PlayBuffer %s\n", PLAYBUFFER_VERSION);
-    printf("Built with PortAudio commit: %s\n", PORTAUDIO_COMMIT);
-
-    // Read all audio data from stdin
-    read_all_from_stdin();
-
-    if (buffer_size == 0) {
-        printf("No audio data received\n");
-        return 1;
+// Streaming mode: read in chunks and play continuously
+void stream_from_stdin() {
+    const size_t CHUNK_SIZE = 4410; // 0.1 second chunks
+    float *chunk_buffer = malloc(CHUNK_SIZE * sizeof(float));
+    if (!chunk_buffer) {
+        printf("Failed to allocate chunk buffer\n");
+        return;
     }
 
-    printf("Playing %zu samples (%.4f seconds)\n", buffer_size, (float)buffer_size / SAMPLE_RATE);
+    printf("Starting streaming mode...\n");
 
+    // Initialize PortAudio here for streaming
     Pa_Initialize();
     PaStream *stream;
     Pa_OpenDefaultStream(&stream, 0, 1, paFloat32, SAMPLE_RATE,
-                         FRAMES_PER_BUFFER, paCallback, NULL);
+                         paFramesPerBufferUnspecified, NULL, NULL);
     Pa_StartStream(stream);
 
-    // Wait until audio finishes playing
-    while (!audio_finished) {
-        Pa_Sleep(100);
+    while (!feof(stdin)) {
+        size_t samples_read = fread(chunk_buffer, sizeof(float), CHUNK_SIZE, stdin);
+        if (samples_read > 0) {
+            printf("Streaming %zu samples\n", samples_read);
+            // Play the chunk immediately
+            Pa_WriteStream(stream, chunk_buffer, samples_read);
+        } else if (ferror(stdin)) {
+            break;
+        }
+        // Small delay to prevent busy waiting
+        Pa_Sleep(10);
     }
 
     Pa_StopStream(stream);
     Pa_CloseStream(stream);
     Pa_Terminate();
+    free(chunk_buffer);
+    printf("Streaming finished\n");
+}
 
-    free(audio_buffer);
+int main(int argc, char *argv[]) {
+    printf("PlayBuffer %s\n", PLAYBUFFER_VERSION);
+    printf("Built with PortAudio commit: %s\n", PORTAUDIO_COMMIT);
+
+    // Check for streaming mode argument
+    int streaming_mode = 0;
+    if (argc > 1 && strcmp(argv[1], "--stream") == 0) {
+        streaming_mode = 1;
+    }
+
+    if (streaming_mode) {
+        stream_from_stdin();
+    } else {
+        // Read all audio data from stdin
+        read_all_from_stdin();
+
+        if (buffer_size == 0) {
+            printf("No audio data received\n");
+            printf("Usage: %s [--stream]\n", argv[0]);
+            printf("  --stream: Enable continuous streaming mode\n");
+            return 1;
+        }
+
+        printf("Playing %zu samples (%.4f seconds)\n", buffer_size, (float)buffer_size / SAMPLE_RATE);
+
+        Pa_Initialize();
+        PaStream *stream;
+        Pa_OpenDefaultStream(&stream, 0, 1, paFloat32, SAMPLE_RATE,
+                             FRAMES_PER_BUFFER, paCallback, NULL);
+        Pa_StartStream(stream);
+
+        // Wait until audio finishes playing
+        while (!audio_finished) {
+            Pa_Sleep(100);
+        }
+
+        Pa_StopStream(stream);
+        Pa_CloseStream(stream);
+        Pa_Terminate();
+
+        free(audio_buffer);
+    }
     return 0;
 }

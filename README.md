@@ -51,12 +51,19 @@ The build scripts automatically download and compile the latest PortAudio from s
 The program reads raw 32-bit float audio samples from stdin and plays them:
 
 ```bash
-# Example: Generate and play a sine wave
+# Default mode: Read all data then play (buffered playback)
 your_audio_generator | ./play_buffer
+
+# Streaming mode: Play audio continuously as it's received
+your_audio_generator | ./play_buffer --stream
 
 # Example: Play raw audio data from a file
 cat audio_samples.raw | ./play_buffer
 ```
+
+### Command Line Options
+
+- `--stream`: Enable continuous streaming mode where audio is played as it's received, rather than waiting for all data before playback. Useful for real-time audio generation or long-running audio streams.
 
 ### Node.js Example
 
