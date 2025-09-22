@@ -98,8 +98,9 @@ static int paCallback(const void *input, void *output,
 
 // Streaming mode: read in chunks and play continuously
 void stream_from_stdin() {
-    const size_t CHUNK_SIZE = 4410; // 0.1 second chunks
-    float *chunk_buffer = malloc(CHUNK_SIZE * sizeof(float));
+
+    const size_t STREAM_CHUNK_SIZE = 4410; // 0.1 second chunks
+    float *chunk_buffer = malloc(STREAM_CHUNK_SIZE * sizeof(float));
     if (!chunk_buffer) {
         printf("Failed to allocate chunk buffer\n");
         return;
@@ -115,7 +116,7 @@ void stream_from_stdin() {
     Pa_StartStream(stream);
 
     while (!feof(stdin)) {
-        size_t samples_read = fread(chunk_buffer, sizeof(float), CHUNK_SIZE, stdin);
+        size_t samples_read = fread(chunk_buffer, sizeof(float), STREAM_CHUNK_SIZE, stdin);
         if (samples_read > 0) {
             printf("Streaming %zu samples\n", samples_read);
             // Play the chunk immediately
