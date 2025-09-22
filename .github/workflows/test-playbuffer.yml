@@ -13,7 +13,7 @@ jobs:
       - name: Download PlayBuffer artifact
         uses: actions/download-artifact@v4
         with:
-          name: playbuffer-linux
+          name: playbuffer-linux-latest
           path: ./artifacts
       - name: Generate test sine wave
         run: |
@@ -28,7 +28,7 @@ jobs:
       - name: Download PlayBuffer artifact
         uses: actions/download-artifact@v4
         with:
-          name: playbuffer-macos
+          name: playbuffer-macos-latest
           path: ./artifacts
       - name: Generate test sine wave
         run: |
@@ -43,7 +43,7 @@ jobs:
       - name: Download PlayBuffer artifact
         uses: actions/download-artifact@v4
         with:
-          name: playbuffer-windows
+          name: playbuffer-windows-latest
           path: ./artifacts
       - name: Generate test sine wave
         run: |
