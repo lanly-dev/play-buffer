@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <portaudio.h>
+#include <stdint.h>
 
 #define SAMPLE_RATE 44100
 #define FRAMES_PER_BUFFER 256
@@ -93,19 +94,8 @@ static int paCallback(const void *input, void *output,
     return audio_finished ? paComplete : paContinue;
 }
 
-int main() {
-    // On Windows, set stdin to binary mode
-#ifdef _WIN32
-#include <fcntl.h>
-#include <io.h>
-    _setmode(_fileno(stdin), _O_BINARY);
-#endif
-    printf("PlayBuffer %s\n", PLAYBUFFER_VERSION);
-    printf("Built with PortAudio commit: %s\n", PORTAUDIO_COMMIT);
-
-    // Read all audio data from stdin
-    read_all_from_stdin();
-
+// Play audio that is already fully loaded into memory using PortAudio callback API
+static int play_preloaded(void) {
     if (buffer_size == 0) {
         printf("No audio data received\n");
         return 1;
@@ -113,11 +103,27 @@ int main() {
 
     printf("Playing %zu samples (%.4f seconds)\n", buffer_size, (float)buffer_size / SAMPLE_RATE);
 
-    Pa_Initialize();
-    PaStream *stream;
-    Pa_OpenDefaultStream(&stream, 0, 1, paFloat32, SAMPLE_RATE,
-                         FRAMES_PER_BUFFER, paCallback, NULL);
-    Pa_StartStream(stream);
+    PaError err;
+    if ((err = Pa_Initialize()) != paNoError) {
+        fprintf(stderr, "Pa_Initialize failed: %s\n", Pa_GetErrorText(err));
+        return 1;
+    }
+
+    PaStream *stream = NULL;
+    err = Pa_OpenDefaultStream(&stream, 0, 1, paFloat32, SAMPLE_RATE,
+                               FRAMES_PER_BUFFER, paCallback, NULL);
+    if (err != paNoError) {
+        fprintf(stderr, "Pa_OpenDefaultStream failed: %s\n", Pa_GetErrorText(err));
+        Pa_Terminate();
+        return 1;
+    }
+
+    if ((err = Pa_StartStream(stream)) != paNoError) {
+        fprintf(stderr, "Pa_StartStream failed: %s\n", Pa_GetErrorText(err));
+        Pa_CloseStream(stream);
+        Pa_Terminate();
+        return 1;
+    }
 
     // Wait until audio finishes playing
     while (!audio_finished) {
@@ -127,7 +133,122 @@ int main() {
     Pa_StopStream(stream);
     Pa_CloseStream(stream);
     Pa_Terminate();
-
-    free(audio_buffer);
     return 0;
+}
+
+// Stream audio directly from stdin to PortAudio using the blocking API
+static int play_streaming(void) {
+    PaError err;
+    if ((err = Pa_Initialize()) != paNoError) {
+        fprintf(stderr, "Pa_Initialize failed: %s\n", Pa_GetErrorText(err));
+        return 1;
+    }
+
+    PaStream *stream = NULL;
+    err = Pa_OpenDefaultStream(&stream, 0, 1, paFloat32, SAMPLE_RATE,
+                               FRAMES_PER_BUFFER, NULL, NULL);
+    if (err != paNoError) {
+        fprintf(stderr, "Pa_OpenDefaultStream failed: %s\n", Pa_GetErrorText(err));
+        Pa_Terminate();
+        return 1;
+    }
+
+    if ((err = Pa_StartStream(stream)) != paNoError) {
+        fprintf(stderr, "Pa_StartStream failed: %s\n", Pa_GetErrorText(err));
+        Pa_CloseStream(stream);
+        Pa_Terminate();
+        return 1;
+    }
+
+    printf("Streaming from stdin... (CTRL+C to abort)\n");
+
+    // Read stdin in chunks of FRAMES_PER_BUFFER and write to PortAudio
+    float *ioBuffer = (float*)malloc(sizeof(float) * FRAMES_PER_BUFFER);
+    if (!ioBuffer) {
+        fprintf(stderr, "Failed to allocate streaming buffer\n");
+        Pa_StopStream(stream);
+        Pa_CloseStream(stream);
+        Pa_Terminate();
+        return 1;
+    }
+
+    while (1) {
+        size_t readCount = fread(ioBuffer, sizeof(float), FRAMES_PER_BUFFER, stdin);
+        if (readCount == FRAMES_PER_BUFFER) {
+            // Write exactly one buffer
+            err = Pa_WriteStream(stream, ioBuffer, FRAMES_PER_BUFFER);
+            if (err != paNoError) {
+                fprintf(stderr, "Pa_WriteStream failed: %s\n", Pa_GetErrorText(err));
+                break;
+            }
+        } else if (readCount > 0) {
+            // Last partial buffer: pad with zeros and write once, then break
+            memset(ioBuffer + readCount, 0, (FRAMES_PER_BUFFER - readCount) * sizeof(float));
+            err = Pa_WriteStream(stream, ioBuffer, FRAMES_PER_BUFFER);
+            if (err != paNoError) {
+                fprintf(stderr, "Pa_WriteStream failed on final write: %s\n", Pa_GetErrorText(err));
+            }
+            break;
+        } else {
+            // Nothing read: EOF or error
+            if (feof(stdin)) {
+                // normal EOF
+            } else if (ferror(stdin)) {
+                perror("fread");
+            }
+            break;
+        }
+    }
+
+    free(ioBuffer);
+    Pa_StopStream(stream);
+    Pa_CloseStream(stream);
+    Pa_Terminate();
+    return 0;
+}
+
+static void print_usage(const char* prog) {
+    printf("Usage: %s [--stream|-s]\n", prog);
+    printf("\n");
+    printf("Reads raw 32-bit float samples from stdin and plays them.\n");
+    printf("\n");
+    printf("Modes:\n");
+    printf("  (default) Preload: read all stdin to memory, then play.\n");
+    printf("  --stream, -s    : stream from stdin while playing (lower memory).\n");
+}
+
+int main(int argc, char** argv) {
+    // On Windows, set stdin to binary mode
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+    _setmode(_fileno(stdin), _O_BINARY);
+#endif
+    printf("PlayBuffer %s\n", PLAYBUFFER_VERSION);
+    printf("Built with PortAudio commit: %s\n", PORTAUDIO_COMMIT);
+
+    int use_streaming = 0;
+    for (int i = 1; i < argc; ++i) {
+        if (strcmp(argv[i], "--stream") == 0 || strcmp(argv[i], "-s") == 0) {
+            use_streaming = 1;
+        } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
+            print_usage(argv[0]);
+            return 0;
+        } else {
+            fprintf(stderr, "Unknown argument: %s\n\n", argv[i]);
+            print_usage(argv[0]);
+            return 1;
+        }
+    }
+
+    int rc = 0;
+    if (use_streaming) {
+        rc = play_streaming();
+    } else {
+        // Read all audio data from stdin then play
+        read_all_from_stdin();
+        rc = play_preloaded();
+        free(audio_buffer);
+    }
+    return rc;
 }

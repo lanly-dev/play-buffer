@@ -1,5 +1,6 @@
 const { spawn } = require('child_process')
 const fs = require('fs')
+const path = require('path')
 
 // Note frequencies (Hz)
 const NOTES = {
@@ -10,7 +11,11 @@ const NOTES = {
   G4: 392.00,
   A4: 440.00,
   B4: 493.88,
-  C5: 523.25
+  C5: 523.25,
+  D5: 587.33,
+  E5: 659.25,
+  F5: 698.46,
+  G5: 783.99
 }
 
 function generateTone(freq, duration = 0.4, amp = 0.3) {
@@ -53,9 +58,18 @@ function generateMelody() {
 }
 
 function playAudio(audioData) {
-  const exe = process.platform === 'win32' ? 'play_buffer.exe' : './play_buffer.exe'
-  if (!fs.existsSync(exe)) {
-    console.log('play_buffer.exe not found - build it first')
+  const candidates = process.platform === 'win32'
+    ? [
+        path.join(__dirname, 'play_buffer.exe'), // shipped in examples for Windows
+        path.join(__dirname, '..', 'play_buffer.exe')
+      ]
+    : [
+        path.join(__dirname, '..', 'play_buffer'), // default build location
+        path.join(__dirname, 'play_buffer')
+      ]
+  const exe = candidates.find(p => fs.existsSync(p))
+  if (!exe) {
+    console.log(`Player not found at any of: \n${candidates.map(c=>` - ${c}`).join('\n')}\nBuild it first or download the latest binary.`)
     return
   }
   console.log(`Generated ${audioData.length} samples (${(audioData.length / 44100).toFixed(2)} seconds)`)

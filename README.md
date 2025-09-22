@@ -16,6 +16,7 @@ This utility allows you to pipe raw audio data (32-bit float samples) directly t
 - Version information displayed at runtime
 - Automated daily builds with latest PortAudio
 - Example: Generate and play melodies with Node.js (see `examples/index.js`)
+- Streaming mode: play while reading from stdin (`--stream`)
 
 ## Building
 
@@ -48,27 +49,87 @@ The build scripts automatically download and compile the latest PortAudio from s
 
 ## Usage
 
-The program reads raw 32-bit float audio samples from stdin and plays them:
+The program reads raw 32-bit float audio samples from stdin and plays them. Two modes are available:
+
+- Preload mode (default): reads all stdin into memory, then plays back
+- Streaming mode (`--stream` or `-s`): reads and plays in chunks to minimize memory usage
 
 ```bash
-# Example: Generate and play a sine wave
+# Example: Generate and play a sine wave (preload mode)
 your_audio_generator | ./play_buffer
 
-# Example: Play raw audio data from a file
+# Example: Streaming mode (recommended for long audio)
+your_audio_generator | ./play_buffer --stream
+
+# Example: Play raw audio data from a file (preload)
 cat audio_samples.raw | ./play_buffer
+
+# Example: Play raw audio data from a file (streaming)
+cat audio_samples.raw | ./play_buffer --stream
 ```
 
 ### Node.js Example
 
 You can generate and play melodies (such as "Happy Birthday") using Node.js. See `examples/index.js` for a working implementation.
 
-### Audio Format
+For continuous/large audio, see `examples/streaming.js` or the inline sample below.
 
-- **Sample Rate**: 44,100 Hz
-- **Channels**: Mono
-- **Sample Format**: 32-bit floating point (-1.0 to 1.0)
-- **Byte Order**: Native endianness
-- **Input**: Raw binary data via stdin (no headers)
+### Streaming from Node.js (inline)
+
+Here's a minimal Node.js example that streams generated audio in chunks to `play_buffer` using the `--stream` mode. This avoids buffering the entire audio in memory inside `play_buffer`.
+
+```js
+const { spawn } = require('child_process')
+
+const sampleRate = 44100
+const exe = process.platform === 'win32' ? 'play_buffer.exe' : './play_buffer'
+
+// Generator producing a continuous sine tone at 440 Hz
+function* toneGenerator(freq = 440, amp = 0.3) {
+  let t = 0
+  const dt = 1 / sampleRate
+  const chunkSize = 2048
+  while (true) {
+    const chunk = new Float32Array(chunkSize)
+    for (let i = 0; i < chunkSize; i++) {
+      chunk[i] = amp * Math.sin(2 * Math.PI * freq * t)
+      t += dt
+    }
+    yield Buffer.from(new Uint8Array(chunk.buffer))
+  }
+}
+
+const gen = toneGenerator()
+const child = spawn(exe, ['--stream'], { stdio: ['pipe', 'inherit', 'inherit'] })
+
+// Send ~3 seconds of audio, then end
+let sent = 0
+const targetSamples = sampleRate * 3
+const chunkSamples = 2048
+
+function pump() {
+  while (sent < targetSamples) {
+    const buf = gen.next().value
+    const ok = child.stdin.write(buf)
+    sent += chunkSamples
+    if (!ok) {
+      child.stdin.once('drain', pump)
+      return
+    }
+  }
+  child.stdin.end()
+}
+
+pump()
+```
+
+## Audio Format
+
+- Sample Rate: 44,100 Hz
+- Channels: Mono
+- Sample Format: 32-bit floating point (-1.0 to 1.0)
+- Byte Order: Native endianness
+- Input: Raw binary data via stdin (no headers)
 
 ## Windows Binary Stdin Fix
 
@@ -79,14 +140,14 @@ On Windows, PlayBuffer sets stdin to binary mode to ensure all audio data is rea
 Use the batch script to download the latest Windows build to your `examples` directory:
 
 ```cmd
-examples\download-latest-windows.bat
+examples\download.bat
 ```
 
 ## Version Information
 
 The executable displays version information at runtime:
 
-- **Windows/Linux/macOS**: Run the executable to see version and PortAudio commit info
+- Windows/Linux/macOS: Run the executable to see version and PortAudio commit info
 
 ## Configuration
 
@@ -99,10 +160,10 @@ Key parameters can be modified in `play_buffer.c`:
 
 This project includes GitHub Actions workflows that:
 
-- **Monitor PortAudio daily** for new commits
-- **Build automatically** on Windows, Linux, and macOS
-- **Create releases** with version tags like `v2025.09.21-b0cc303.1`
-- **Embed version metadata** including PortAudio commit information
+- Monitor PortAudio daily for new commits
+- Build automatically on Windows, Linux, and macOS
+- Create releases with version tags like `v2025.09.21-b0cc303.1`
+- Embed version metadata including PortAudio commit information
 
 Download the latest pre-built binaries from the [Releases page](https://github.com/lanly-dev/play-buffer/releases).
 
