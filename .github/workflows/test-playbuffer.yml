@@ -1,55 +1,74 @@
 name: Test PlayBuffer Executable
 
 on:
-  workflow_run:
-    workflows: ["Build and Release PlayBuffer"]
-    types:
-      - completed
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   test-linux:
     runs-on: ubuntu-latest
     steps:
-      - name: Download PlayBuffer artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: playbuffer-ubuntu-latest
-          path: ./artifacts
+      - name: Download latest Linux binary
+        run: |
+          # Get latest release info
+          RELEASE_INFO=$(curl -s https://api.github.com/repos/lanly-dev/play-buffer/releases/latest)
+          ASSET_URL=$(echo $RELEASE_INFO | jq -r '.assets[] | select(.name == "play_buffer_linux") | .browser_download_url')
+          if [ -z "$ASSET_URL" ]; then
+            echo "No Linux binary found in latest release"
+            exit 1
+          fi
+          curl -L -o play_buffer $ASSET_URL
+          chmod +x play_buffer
       - name: Generate test sine wave
         run: |
           python3 -c "import numpy as np; np.array([np.sin(2*np.pi*440*t/44100) for t in range(44100)], dtype='float32').tofile('test.raw')"
       - name: Run PlayBuffer and check output
         run: |
-          ./artifacts/play_buffer_linux < test.raw > output.txt
+          ./play_buffer < test.raw > output.txt
           grep "Playing 44100 samples" output.txt
   test-macos:
     runs-on: macos-latest
     steps:
-      - name: Download PlayBuffer artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: playbuffer-macos-latest
-          path: ./artifacts
+      - name: Download latest macOS binary
+        run: |
+          # Get latest release info
+          RELEASE_INFO=$(curl -s https://api.github.com/repos/lanly-dev/play-buffer/releases/latest)
+          ASSET_URL=$(echo $RELEASE_INFO | jq -r '.assets[] | select(.name == "play_buffer_macos") | .browser_download_url')
+          if [ -z "$ASSET_URL" ]; then
+            echo "No macOS binary found in latest release"
+            exit 1
+          fi
+          curl -L -o play_buffer $ASSET_URL
+          chmod +x play_buffer
       - name: Generate test sine wave
         run: |
           python3 -c "import numpy as np; np.array([np.sin(2*np.pi*440*t/44100) for t in range(44100)], dtype='float32').tofile('test.raw')"
       - name: Run PlayBuffer and check output
         run: |
-          ./artifacts/play_buffer_macos < test.raw > output.txt
+          ./play_buffer < test.raw > output.txt
           grep "Playing 44100 samples" output.txt
   test-windows:
     runs-on: windows-latest
     steps:
-      - name: Download PlayBuffer artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: playbuffer-windows-latest
-          path: ./artifacts
+      - name: Download latest Windows binary
+        run: |
+          # Get latest release info
+          $releaseInfo = Invoke-RestMethod -Uri "https://api.github.com/repos/lanly-dev/play-buffer/releases/latest"
+          $asset = $releaseInfo.assets | Where-Object { $_.name -eq "play_buffer_windows.exe" }
+          if (-not $asset) {
+            Write-Host "No Windows binary found in latest release"
+            exit 1
+          }
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile "play_buffer.exe"
+        shell: pwsh
       - name: Generate test sine wave
         run: |
           python -c "import numpy as np; np.array([np.sin(2*np.pi*440*t/44100) for t in range(44100)], dtype='float32').tofile('test.raw')"
       - name: Run PlayBuffer and check output
         run: |
-          .\artifacts\play_buffer_windows.exe < test.raw > output.txt
+          .\play_buffer.exe < test.raw > output.txt
           findstr "Playing 44100 samples" output.txt
         shell: cmd
