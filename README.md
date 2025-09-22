@@ -13,8 +13,9 @@ This utility allows you to pipe raw audio data (32-bit float samples) directly t
 - Dynamic buffer allocation for audio of any length
 - Cross-platform support (Windows, Linux, macOS)
 - Uses PortAudio for reliable audio output
-- Version information embedded in binaries
+- Version information displayed at runtime
 - Automated daily builds with latest PortAudio
+- Example: Generate and play melodies with Node.js (see `examples/index.js`)
 
 ## Building
 
@@ -30,7 +31,7 @@ Use the provided build scripts for your platform:
 
 #### Windows
 ```powershell
-.\scripts\build-windows.ps1
+./scripts/build-windows.ps1
 ```
 
 #### Ubuntu/Linux
@@ -57,6 +58,10 @@ your_audio_generator | ./play_buffer
 cat audio_samples.raw | ./play_buffer
 ```
 
+### Node.js Example
+
+You can generate and play melodies (such as "Happy Birthday") using Node.js. See `examples/index.js` for a working implementation.
+
 ### Audio Format
 
 - **Sample Rate**: 44,100 Hz
@@ -65,12 +70,23 @@ cat audio_samples.raw | ./play_buffer
 - **Byte Order**: Native endianness
 - **Input**: Raw binary data via stdin (no headers)
 
+## Windows Binary Stdin Fix
+
+On Windows, PlayBuffer sets stdin to binary mode to ensure all audio data is read correctly. This is handled automatically in the code.
+
+## Download Latest Windows Build
+
+Use the batch script to download the latest Windows build to your `examples` directory:
+
+```cmd
+examples\download-latest-windows.bat
+```
+
 ## Version Information
 
-The executable includes embedded version information:
+The executable displays version information at runtime:
 
-- **Windows**: Visible in file properties (right-click → Properties → Details)
-- **Linux/macOS**: Use `strings play_buffer | grep -E "(PlayBuffer|PortAudio)"` or run the executable to see version info
+- **Windows/Linux/macOS**: Run the executable to see version and PortAudio commit info
 
 ## Configuration
 
