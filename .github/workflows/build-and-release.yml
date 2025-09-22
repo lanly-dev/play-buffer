@@ -29,11 +29,11 @@ jobs:
           # Get latest PortAudio commit
           LATEST_COMMIT=$(git ls-remote https://github.com/PortAudio/portaudio.git HEAD | awk '{print $1}')
           SHORT_COMMIT=${LATEST_COMMIT:0:7}
-          
+
           # Generate version tag with increment to avoid duplicates
           DATE_TAG=$(date +"%Y.%m.%d")
           BUILD_NUM=1
-          
+
           # Find the next available increment for today
           while true; do
             VERSION="v${DATE_TAG}-${SHORT_COMMIT}.${BUILD_NUM}"
@@ -45,10 +45,10 @@ jobs:
               break
             fi
           done
-          
+
           echo "portaudio_commit=$LATEST_COMMIT" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          
+
           # Check if we've already built this PortAudio commit
           if [ -f last_built.txt ]; then
             LAST_BUILT=$(cat last_built.txt | sed 's/PortAudio commit: //')
@@ -99,7 +99,7 @@ jobs:
           cd portaudio
           mkdir build
           cd build
-          
+
           if [ "${{ runner.os }}" = "Windows" ]; then
             cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../install
             cmake --build . --config Release
@@ -148,7 +148,7 @@ jobs:
         run: |
           mkdir -p artifacts
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then OS_NAME=linux; else OS_NAME=macos; fi
-          
+
           # Copy the built executable
           if [ -f play_buffer ]; then
             cp play_buffer "artifacts/play_buffer_${OS_NAME}"
@@ -160,7 +160,7 @@ jobs:
             echo "Warning: play_buffer executable not found"
             find . -name "play_buffer" -type f || echo "No play_buffer found"
           fi
-          
+
           echo "Packaged files:"
           ls -la artifacts/
 
@@ -168,7 +168,7 @@ jobs:
         if: matrix.os == 'windows-latest'
         run: |
           New-Item -ItemType Directory -Force -Path artifacts | Out-Null
-          
+
           # Copy the built executable
           if (Test-Path "play_buffer.exe") {
             Copy-Item "play_buffer.exe" "artifacts\play_buffer_windows.exe"
@@ -180,7 +180,7 @@ jobs:
             Write-Host "Warning: play_buffer.exe executable not found"
             Get-ChildItem -Recurse -Filter "play_buffer.exe" | Write-Host
           }
-          
+
           Write-Host "Packaged files:"
           Get-ChildItem artifacts/
         shell: pwsh
@@ -221,7 +221,7 @@ jobs:
             COMMIT_URL="https://github.com/${GITHUB_REPOSITORY}/commit/$COMMIT_SHA"
             PORTAUDIO_COMMIT="${{ needs.check-portaudio.outputs.portaudio-commit }}"
             PORTAUDIO_SHORT="${PORTAUDIO_COMMIT:0:7}"
-            
+
             gh release create ${{ needs.check-portaudio.outputs.version }} \
               --title "PlayBuffer ${{ needs.check-portaudio.outputs.version }}" \
               --notes $'Automated build of PlayBuffer with latest PortAudio\n\nPortAudio commit: https://github.com/PortAudio/portaudio/commit/'$PORTAUDIO_COMMIT$'\nPlayBuffer commit: '$COMMIT_URL
@@ -246,10 +246,10 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          
+
           PORTAUDIO_COMMIT="${{ needs.check-portaudio.outputs.portaudio-commit }}"
           echo "PortAudio commit: $PORTAUDIO_COMMIT" > last_built.txt
-          
+
           # Only commit if there are changes
           if git diff --quiet last_built.txt; then
             echo "No changes to last_built.txt - already up to date"
