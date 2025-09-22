@@ -237,11 +237,11 @@ jobs:
             # Build markdown notes where the run number text is a clickable link
             NOTES=$'Automated build of PlayBuffer with latest PortAudio\n\n'
             NOTES+=$'PortAudio commit: https://github.com/PortAudio/portaudio/commit/'$PORTAUDIO_COMMIT$'\n'
-            NOTES+=$'PlayBuffer commit: '$COMMIT_URL$'\n\n'
+            NOTES+=$'PlayBuffer commit: '$COMMIT_URL$'\n'
             NOTES+=$'GitHub Actions run: ['"#${{ github.run_number }}"']('$RUN_URL$')\n'
 
             gh release create ${{ needs.check-portaudio.outputs.version }} \
-              --title "PlayBuffer ${{ needs.check-portaudio.outputs.version }} (run #${{ github.run_number }})" \
+              --title "PlayBuffer ${{ needs.check-portaudio.outputs.version }}" \
               --notes "$NOTES"
           else
             echo "No artifacts found to upload. Skipping release."
