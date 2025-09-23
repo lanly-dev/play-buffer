@@ -52,7 +52,20 @@ The build scripts automatically download and compile the latest PortAudio from s
 PlayBuffer supports two modes:
 
 - **Preload mode (default):** Reads all stdin into memory, then plays back using PortAudio callback.
-- **Streaming mode (`--stream` or `-s`):** Reads and plays audio in real time from stdin using a thread-safe ring buffer and PortAudio callback. This minimizes delay and is ideal for live or generated audio.
+- **Streaming (blocking API):** Use `--stream-blocking` to stream from stdin using the blocking API (smoother, more latency).
+- **Streaming (callback API):** Use `--stream-callback` to stream from stdin using the callback API (lower latency, risk underruns).
+
+**Examples:**
+```bash
+# Preload mode (default)
+your_audio_generator | ./play_buffer
+
+# Streaming mode (blocking API)
+your_audio_generator | ./play_buffer --stream-blocking
+
+# Streaming mode (callback API)
+your_audio_generator | ./play_buffer --stream-callback
+```
 
 **Buffer size tuning:**
 - The buffer size (`FRAMES_PER_BUFFER`) in `play_buffer.c` controls audio latency and CPU usage. Lower values (e.g., 16, 32) give lower latency but higher CPU usage. Higher values (e.g., 256) are safer but add delay.
