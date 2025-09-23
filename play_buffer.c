@@ -249,13 +249,14 @@ static int play_streaming(void) {
 }
 
 static void print_usage(const char* prog) {
-    printf("Usage: %s [--stream|-s]\n", prog);
+    printf("Usage: %s [--stream-blocking] [--stream-callback]\n", prog);
     printf("\n");
     printf("Reads raw 32-bit float samples from stdin and plays them.\n");
     printf("\n");
     printf("Modes:\n");
     printf("  (default) Preload: read all stdin to memory, then play.\n");
-    printf("  --stream, -s    : stream from stdin while playing (lower memory).\n");
+    printf("  --stream-blocking   : stream from stdin using blocking API (smoother, more latency)\n");
+    printf("  --stream-callback   : stream from stdin using callback API (lower latency, risk underruns)\n");
 }
 
 int main(int argc, char** argv) {
@@ -268,10 +269,13 @@ int main(int argc, char** argv) {
     printf("PlayBuffer %s\n", PLAYBUFFER_VERSION);
     printf("Built with PortAudio commit: %s\n", PORTAUDIO_COMMIT);
 
-    int use_streaming = 0;
+    int use_stream_blocking = 0;
+    int use_stream_callback = 0;
     for (int i = 1; i < argc; ++i) {
-        if (strcmp(argv[i], "--stream") == 0 || strcmp(argv[i], "-s") == 0) {
-            use_streaming = 1;
+        if (strcmp(argv[i], "--stream-blocking") == 0) {
+            use_stream_blocking = 1;
+        } else if (strcmp(argv[i], "--stream-callback") == 0) {
+            use_stream_callback = 1;
         } else if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-h") == 0) {
             print_usage(argv[0]);
             return 0;
@@ -283,7 +287,67 @@ int main(int argc, char** argv) {
     }
 
     int rc = 0;
-    if (use_streaming) {
+    if (use_stream_blocking) {
+        // Blocking API
+        PaError err;
+        if ((err = Pa_Initialize()) != paNoError) {
+            fprintf(stderr, "Pa_Initialize failed: %s\n", Pa_GetErrorText(err));
+            return 1;
+        }
+        PaStream *stream = NULL;
+        err = Pa_OpenDefaultStream(&stream, 0, 1, paFloat32, SAMPLE_RATE,
+                                   FRAMES_PER_BUFFER, NULL, NULL);
+        if (err != paNoError) {
+            fprintf(stderr, "Pa_OpenDefaultStream failed: %s\n", Pa_GetErrorText(err));
+            Pa_Terminate();
+            return 1;
+        }
+        if ((err = Pa_StartStream(stream)) != paNoError) {
+            fprintf(stderr, "Pa_StartStream failed: %s\n", Pa_GetErrorText(err));
+            Pa_CloseStream(stream);
+            Pa_Terminate();
+            return 1;
+        }
+        printf("Streaming from stdin (blocking mode)...\n");
+        float *ioBuffer = (float*)malloc(sizeof(float) * FRAMES_PER_BUFFER);
+        if (!ioBuffer) {
+            fprintf(stderr, "Failed to allocate streaming buffer\n");
+            Pa_StopStream(stream);
+            Pa_CloseStream(stream);
+            Pa_Terminate();
+            return 1;
+        }
+        while (1) {
+            size_t readCount = fread(ioBuffer, sizeof(float), FRAMES_PER_BUFFER, stdin);
+            if (readCount == FRAMES_PER_BUFFER) {
+                err = Pa_WriteStream(stream, ioBuffer, FRAMES_PER_BUFFER);
+                if (err != paNoError) {
+                    fprintf(stderr, "Pa_WriteStream failed: %s\n", Pa_GetErrorText(err));
+                    break;
+                }
+            } else if (readCount > 0) {
+                memset(ioBuffer + readCount, 0, (FRAMES_PER_BUFFER - readCount) * sizeof(float));
+                err = Pa_WriteStream(stream, ioBuffer, FRAMES_PER_BUFFER);
+                if (err != paNoError) {
+                    fprintf(stderr, "Pa_WriteStream failed on final write: %s\n", Pa_GetErrorText(err));
+                }
+                break;
+            } else {
+                if (feof(stdin)) {
+                    // normal EOF
+                } else if (ferror(stdin)) {
+                    perror("fread");
+                }
+                break;
+            }
+        }
+        free(ioBuffer);
+        Pa_StopStream(stream);
+        Pa_CloseStream(stream);
+        Pa_Terminate();
+        rc = 0;
+    } else if (use_stream_callback) {
+        // Callback API
         rc = play_streaming();
     } else {
         // Read all audio data from stdin then play

@@ -27,7 +27,9 @@ function main() {
     console.error(`Player not found at ${exe} - build it first or download the latest binary`)
     process.exit(1)
   }
-  const child = spawn(exe, ['--stream'], { stdio: ['pipe', 'inherit', 'inherit'] })
+  // Choose streaming mode via command line argument: 'blocking' or 'callback'
+  const mode = process.argv[2] === 'blocking' ? '--stream-blocking' : '--stream-callback'
+  const child = spawn(exe, [mode], { stdio: ['pipe', 'inherit', 'inherit'] })
 
   child.on('error', (e) => console.error('Failed to start play_buffer:', e.message))
   child.on('close', (code) => console.log('play_buffer exited with code', code))

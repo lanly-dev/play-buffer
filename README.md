@@ -16,7 +16,7 @@ This utility allows you to pipe raw audio data (32-bit float samples) directly t
 - Version information displayed at runtime
 - Automated daily builds with latest PortAudio
 - Example: Generate and play melodies with Node.js (see `examples/index.js`)
-- Streaming mode: play while reading from stdin (`--stream`)
+- **Streaming mode:** Real-time playback from stdin using PortAudio callback API (`--stream`)
 
 ## Building
 
@@ -49,20 +49,26 @@ The build scripts automatically download and compile the latest PortAudio from s
 
 ## Usage
 
-The program reads raw 32-bit float audio samples from stdin and plays them. Two modes are available:
+PlayBuffer supports two modes:
 
-- Preload mode (default): reads all stdin into memory, then plays back
-- Streaming mode (`--stream` or `-s`): reads and plays in chunks to minimize memory usage
+- **Preload mode (default):** Reads all stdin into memory, then plays back using PortAudio callback.
+- **Streaming mode (`--stream` or `-s`):** Reads and plays audio in real time from stdin using a thread-safe ring buffer and PortAudio callback. This minimizes delay and is ideal for live or generated audio.
+
+**Buffer size tuning:**
+- The buffer size (`FRAMES_PER_BUFFER`) in `play_buffer.c` controls audio latency and CPU usage. Lower values (e.g., 16, 32) give lower latency but higher CPU usage. Higher values (e.g., 256) are safer but add delay.
+- For real-time applications, set `FRAMES_PER_BUFFER` to 16 or 32 for minimal latency.
 
 ```bash
 # Example: Generate and play a sine wave (preload mode)
 your_audio_generator | ./play_buffer
 
-# Example: Streaming mode (recommended for long audio)
+
+# Example: Streaming mode (real-time, recommended for live or generated audio)
 your_audio_generator | ./play_buffer --stream
 
 # Example: Play raw audio data from a file (preload)
 cat audio_samples.raw | ./play_buffer
+
 
 # Example: Play raw audio data from a file (streaming)
 cat audio_samples.raw | ./play_buffer --stream
@@ -76,7 +82,22 @@ For continuous/large audio, see `examples/streaming.js` or the inline sample bel
 
 ### Streaming from Node.js (inline)
 
-Here's a minimal Node.js example that streams generated audio in chunks to `play_buffer` using the `--stream` mode. This avoids buffering the entire audio in memory inside `play_buffer`.
+You can test both streaming modes using the `examples/streaming.js` script:
+
+```powershell
+# Blocking API streaming (smoother, more latency)
+node examples/streaming.js blocking
+
+# Callback API streaming (lower latency, risk underruns)
+node examples/streaming.js callback
+
+# Default (callback mode)
+node examples/streaming.js
+```
+
+This lets you compare the behavior and latency of both streaming approaches.
+
+Here's a minimal Node.js example that streams generated audio in small chunks to `play_buffer` using the `--stream` mode. This enables near-instant playback for real-time applications.
 
 ```js
 const { spawn } = require('child_process')
@@ -88,7 +109,7 @@ const exe = process.platform === 'win32' ? 'play_buffer.exe' : './play_buffer'
 function* toneGenerator(freq = 440, amp = 0.3) {
   let t = 0
   const dt = 1 / sampleRate
-  const chunkSize = 2048
+  const chunkSize = 16 // Use small chunks for lowest latency
   while (true) {
     const chunk = new Float32Array(chunkSize)
     for (let i = 0; i < chunkSize; i++) {
@@ -100,12 +121,12 @@ function* toneGenerator(freq = 440, amp = 0.3) {
 }
 
 const gen = toneGenerator()
-const child = spawn(exe, ['--stream'], { stdio: ['pipe', 'inherit', 'inherit'] })
+const child = spawn(exe, ['--stream'], { stdio: ['pipe', 'inherit', 'inherit'], highWaterMark: chunkSize * 4 })
 
 // Send ~3 seconds of audio, then end
 let sent = 0
 const targetSamples = sampleRate * 3
-const chunkSamples = 2048
+const chunkSamples = chunkSize
 
 function pump() {
   while (sent < targetSamples) {
@@ -154,7 +175,7 @@ The executable displays version information at runtime:
 Key parameters can be modified in `play_buffer.c`:
 
 - `SAMPLE_RATE`: Audio sample rate (default: 44100)
-- `FRAMES_PER_BUFFER`: Audio buffer size (default: 256)
+- `FRAMES_PER_BUFFER`: Audio buffer size (default: 16 for lowest latency, or higher for safer playback)
 
 ## Automated Builds
 
