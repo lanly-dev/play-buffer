@@ -273,6 +273,8 @@ int main(int argc, char** argv) {
         PaDeviceInfo *info = Pa_GetDeviceInfo(Pa_GetDefaultOutputDevice());
         if (info) {
             printf("Default low output latency: %.4f seconds\n", info->defaultLowOutputLatency);
+            printf("Default high output latency: %.4f seconds\n", info->defaultHighOutputLatency);
+            printf("Default low output latency: %.4f seconds\n", info->defaultLowOutputLatency);
         }
         Pa_Terminate();
     } else {
