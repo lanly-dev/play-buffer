@@ -42,13 +42,13 @@ void read_all_from_stdin() {
     size_t samples_read;
     size_t total_bytes = 0;
     int read_count = 0;
-    
+
     printf("Starting to read from stdin...\n");
-    
+
     while ((samples_read = fread(chunk, sizeof(float), CHUNK_SIZE, stdin)) > 0) {
         read_count++;
         printf("Read %zu samples in chunk %d\n", samples_read, read_count);
-        
+
         // Ensure we have enough capacity
         while (buffer_size + samples_read > capacity) {
             capacity *= 2;
@@ -59,19 +59,18 @@ void read_all_from_stdin() {
                 return;
             }
         }
-        
+
         // Copy the chunk to our buffer
         memcpy(audio_buffer + buffer_size, chunk, samples_read * sizeof(float));
         buffer_size += samples_read;
         total_bytes += samples_read * sizeof(float);
-        
+
         // If we read less than requested, we've reached EOF
         if (samples_read < CHUNK_SIZE) {
             printf("Reached EOF (read %zu < %d)\n", samples_read, CHUNK_SIZE);
             break;
         }
     }
-    
     printf("Finished reading. Total: %zu bytes (%zu samples) in %d chunks\n", total_bytes, buffer_size, read_count);
 }
 
@@ -90,7 +89,6 @@ static int paCallback(const void *input, void *output,
             audio_finished = 1;
         }
     }
-
     return audio_finished ? paComplete : paContinue;
 }
 
@@ -269,17 +267,17 @@ int main(int argc, char** argv) {
     printf("PlayBuffer %s\n", PLAYBUFFER_VERSION);
     printf("Built with PortAudio commit: %s\n", PORTAUDIO_COMMIT);
 
-        // Print default low output latency
-        PaError err_init = Pa_Initialize();
-        if (err_init == paNoError) {
-            PaDeviceInfo *info = Pa_GetDeviceInfo(Pa_GetDefaultOutputDevice());
-            if (info) {
-                printf("Default low output latency: %.4f seconds\n", info->defaultLowOutputLatency);
-            }
-            Pa_Terminate();
-        } else {
-            printf("(Could not query PortAudio device info: %s)\n", Pa_GetErrorText(err_init));
+    // Print default low output latency
+    PaError err_init = Pa_Initialize();
+    if (err_init == paNoError) {
+        PaDeviceInfo *info = Pa_GetDeviceInfo(Pa_GetDefaultOutputDevice());
+        if (info) {
+            printf("Default low output latency: %.4f seconds\n", info->defaultLowOutputLatency);
         }
+        Pa_Terminate();
+    } else {
+        printf("(Could not query PortAudio device info: %s)\n", Pa_GetErrorText(err_init));
+    }
 
     int use_stream_blocking = 0;
     int use_stream_callback = 0;
