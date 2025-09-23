@@ -269,6 +269,18 @@ int main(int argc, char** argv) {
     printf("PlayBuffer %s\n", PLAYBUFFER_VERSION);
     printf("Built with PortAudio commit: %s\n", PORTAUDIO_COMMIT);
 
+        // Print default low output latency
+        PaError err_init = Pa_Initialize();
+        if (err_init == paNoError) {
+            PaDeviceInfo *info = Pa_GetDeviceInfo(Pa_GetDefaultOutputDevice());
+            if (info) {
+                printf("Default low output latency: %.4f seconds\n", info->defaultLowOutputLatency);
+            }
+            Pa_Terminate();
+        } else {
+            printf("(Could not query PortAudio device info: %s)\n", Pa_GetErrorText(err_init));
+        }
+
     int use_stream_blocking = 0;
     int use_stream_callback = 0;
     for (int i = 1; i < argc; ++i) {

@@ -96,8 +96,6 @@ node examples/streaming.js
 
 This lets you compare the behavior and latency of both streaming approaches.
 
-
-
 ## Audio Format
 
 - Sample Rate: 44,100 Hz
