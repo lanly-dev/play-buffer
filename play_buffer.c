@@ -136,20 +136,69 @@ static int play_preloaded(void) {
     return 0;
 }
 
-// Stream audio directly from stdin to PortAudio using the blocking API
+// --- Callback-based streaming implementation ---
+#define STREAM_RINGBUF_SIZE (SAMPLE_RATE * 2) // 2 seconds of audio
+static float *stream_ringbuf = NULL;
+static size_t stream_write_idx = 0;
+static size_t stream_read_idx = 0;
+static int stream_eof = 0;
+
+static size_t stream_ringbuf_available(void) {
+    if (stream_write_idx >= stream_read_idx)
+        return stream_write_idx - stream_read_idx;
+    else
+        return STREAM_RINGBUF_SIZE - (stream_read_idx - stream_write_idx);
+}
+
+static size_t stream_ringbuf_free(void) {
+    return STREAM_RINGBUF_SIZE - stream_ringbuf_available() - 1;
+}
+
+static int stream_callback(const void *input, void *output,
+                          unsigned long frameCount,
+                          const PaStreamCallbackTimeInfo* timeInfo,
+                          PaStreamCallbackFlags statusFlags,
+                          void *userData) {
+    float *out = (float*)output;
+    size_t avail = stream_ringbuf_available();
+    size_t to_copy = frameCount < avail ? frameCount : avail;
+    for (unsigned long i = 0; i < to_copy; i++) {
+        out[i] = stream_ringbuf[stream_read_idx];
+        stream_read_idx = (stream_read_idx + 1) % STREAM_RINGBUF_SIZE;
+    }
+    for (unsigned long i = to_copy; i < frameCount; i++) {
+        out[i] = 0.0f; // underrun: output silence
+    }
+    // If EOF and buffer empty, signal completion
+    if (stream_eof && stream_ringbuf_available() == 0)
+        return paComplete;
+    return paContinue;
+}
+
 static int play_streaming(void) {
     PaError err;
+    stream_ringbuf = (float*)malloc(sizeof(float) * STREAM_RINGBUF_SIZE);
+    if (!stream_ringbuf) {
+        fprintf(stderr, "Failed to allocate streaming ring buffer\n");
+        return 1;
+    }
+    stream_write_idx = 0;
+    stream_read_idx = 0;
+    stream_eof = 0;
+
     if ((err = Pa_Initialize()) != paNoError) {
         fprintf(stderr, "Pa_Initialize failed: %s\n", Pa_GetErrorText(err));
+        free(stream_ringbuf);
         return 1;
     }
 
     PaStream *stream = NULL;
     err = Pa_OpenDefaultStream(&stream, 0, 1, paFloat32, SAMPLE_RATE,
-                               FRAMES_PER_BUFFER, NULL, NULL);
+                               FRAMES_PER_BUFFER, stream_callback, NULL);
     if (err != paNoError) {
         fprintf(stderr, "Pa_OpenDefaultStream failed: %s\n", Pa_GetErrorText(err));
         Pa_Terminate();
+        free(stream_ringbuf);
         return 1;
     }
 
@@ -157,53 +206,45 @@ static int play_streaming(void) {
         fprintf(stderr, "Pa_StartStream failed: %s\n", Pa_GetErrorText(err));
         Pa_CloseStream(stream);
         Pa_Terminate();
+        free(stream_ringbuf);
         return 1;
     }
 
-    printf("Streaming from stdin... (CTRL+C to abort)\n");
+    printf("Streaming from stdin (callback mode)...\n");
 
-    // Read stdin in chunks of FRAMES_PER_BUFFER and write to PortAudio
-    float *ioBuffer = (float*)malloc(sizeof(float) * FRAMES_PER_BUFFER);
-    if (!ioBuffer) {
-        fprintf(stderr, "Failed to allocate streaming buffer\n");
-        Pa_StopStream(stream);
-        Pa_CloseStream(stream);
-        Pa_Terminate();
-        return 1;
-    }
-
-    while (1) {
-        size_t readCount = fread(ioBuffer, sizeof(float), FRAMES_PER_BUFFER, stdin);
-        if (readCount == FRAMES_PER_BUFFER) {
-            // Write exactly one buffer
-            err = Pa_WriteStream(stream, ioBuffer, FRAMES_PER_BUFFER);
-            if (err != paNoError) {
-                fprintf(stderr, "Pa_WriteStream failed: %s\n", Pa_GetErrorText(err));
-                break;
+    // Main thread: read from stdin and push to ring buffer
+    #define STREAM_CHUNK_SIZE 256
+    float chunk[STREAM_CHUNK_SIZE];
+    while (!stream_eof) {
+        size_t free_space = stream_ringbuf_free();
+        if (free_space == 0) {
+            Pa_Sleep(1); // Buffer full, wait for callback to consume
+            continue;
+        }
+        size_t to_read = free_space < STREAM_CHUNK_SIZE ? free_space : STREAM_CHUNK_SIZE;
+        size_t n = fread(chunk, sizeof(float), to_read, stdin);
+        if (n > 0) {
+            // Copy to ring buffer
+            for (size_t i = 0; i < n; i++) {
+                stream_ringbuf[stream_write_idx] = chunk[i];
+                stream_write_idx = (stream_write_idx + 1) % STREAM_RINGBUF_SIZE;
             }
-        } else if (readCount > 0) {
-            // Last partial buffer: pad with zeros and write once, then break
-            memset(ioBuffer + readCount, 0, (FRAMES_PER_BUFFER - readCount) * sizeof(float));
-            err = Pa_WriteStream(stream, ioBuffer, FRAMES_PER_BUFFER);
-            if (err != paNoError) {
-                fprintf(stderr, "Pa_WriteStream failed on final write: %s\n", Pa_GetErrorText(err));
-            }
-            break;
-        } else {
-            // Nothing read: EOF or error
-            if (feof(stdin)) {
-                // normal EOF
-            } else if (ferror(stdin)) {
-                perror("fread");
-            }
-            break;
+        }
+        if (n < to_read) {
+            // EOF or error
+            stream_eof = 1;
         }
     }
 
-    free(ioBuffer);
+    // Wait for playback to finish
+    while (Pa_IsStreamActive(stream)) {
+        Pa_Sleep(10);
+    }
+
     Pa_StopStream(stream);
     Pa_CloseStream(stream);
     Pa_Terminate();
+    free(stream_ringbuf);
     return 0;
 }
 
