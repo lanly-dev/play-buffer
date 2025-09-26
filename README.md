@@ -127,7 +127,7 @@ The executable displays version information at runtime:
 Key parameters can be modified in `play_buffer.c`:
 
 - `SAMPLE_RATE`: Audio sample rate (default: 44100)
-- `FRAMES_PER_BUFFER`: Audio buffer size (default: 16 for lowest latency, or higher for safer playback)
+- `FRAMES_PER_BUFFER`: Audio buffer size (default: 256; lower for less latency, higher for more reliability)
 
 ## Automated Builds
 
