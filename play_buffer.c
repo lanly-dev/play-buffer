@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 #define SAMPLE_RATE 44100
-#define FRAMES_PER_BUFFER 256
+#define FRAMES_PER_BUFFER 64
 
 #ifndef PLAYBUFFER_VERSION
 #define PLAYBUFFER_VERSION "unknown"

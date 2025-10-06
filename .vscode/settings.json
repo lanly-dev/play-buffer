@@ -1,0 +1,23 @@
+{
+  "cSpell.words": [
+    "advapi",
+    "avrt",
+    "DPLAYBUFFER",
+    "DPORTAUDIO",
+    "ksuser",
+    "lasound",
+    "LASTEXITCODE",
+    "libportaudio",
+    "lpthread",
+    "mmdevapi",
+    "MSVC",
+    "noninteractive",
+    "oleaut",
+    "PLAYBUFFER",
+    "PORTAUDIO",
+    "RINGBUF",
+    "vcvars",
+    "vswhere",
+    "winmm"
+  ]
+}
