@@ -234,9 +234,28 @@ static int play_streaming(void) {
         }
     }
 
-    // Wait for playback to finish
-    while (Pa_IsStreamActive(stream)) {
-        Pa_Sleep(10);
+    // Wait for playback to finish, and recover if stream becomes inactive (e.g., after sleep)
+    while (Pa_IsStreamActive(stream) || (stream_eof && stream_ringbuf_available() > 0)) {
+        PaError active = Pa_IsStreamActive(stream);
+        if (active == 1) {
+            Pa_Sleep(10);
+        } else if (active == 0) {
+            // Stream inactive: try to restart
+            fprintf(stderr, "Warning: PortAudio stream inactive, attempting recovery...\n");
+            PaError err_restart = Pa_StartStream(stream);
+            if (err_restart == paNoError) {
+                fprintf(stderr, "Stream restarted successfully.\n");
+                Pa_Sleep(10);
+                continue;
+            } else {
+                fprintf(stderr, "Stream recovery failed: %s\n", Pa_GetErrorText(err_restart));
+                break;
+            }
+        } else {
+            // Error
+            fprintf(stderr, "PortAudio stream error: %s\n", Pa_GetErrorText(active));
+            break;
+        }
     }
 
     Pa_StopStream(stream);
