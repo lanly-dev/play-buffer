@@ -2,6 +2,8 @@ const { spawn } = require('child_process')
 const path = require('path')
 const fs = require('fs')
 
+const TIMEOUT = 30
+
 const sampleRate = 44100
 const exe = process.platform === 'win32'
   ? path.join(__dirname, 'play_buffer.exe')
@@ -34,10 +36,15 @@ function main() {
   child.on('error', (e) => console.error('Failed to start play_buffer:', e.message))
   child.on('close', (code) => console.log('play_buffer exited with code', code))
 
-  // Send ~5 seconds of audio then end
   let sent = 0
-  const targetSamples = sampleRate * 5
+  const targetSamples = sampleRate * TIMEOUT
   const chunkSamples = 2048
+
+  let startTime = Date.now()
+  let timerInterval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - startTime) / 1000)
+    process.stdout.write(`\rElapsed: ${elapsed}s`)
+  }, 1000)
 
   function pump() {
     while (sent < targetSamples) {
@@ -50,6 +57,8 @@ function main() {
       }
     }
     child.stdin.end()
+    clearInterval(timerInterval)
+    process.stdout.write('\n')
   }
 
   pump()
