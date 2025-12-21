@@ -1,6 +1,6 @@
 # PlayBuffer
 
-A simple cross-platform audio player that reads raw float audio samples from stdin and plays them through the default audio output device using PortAudio.
+A simple cross-platform audio player that reads raw float audio samples from stdin and plays them through the default audio output device using [PortAudio](https://github.com/PortAudio/portaudio).
 
 ## Purpose
 

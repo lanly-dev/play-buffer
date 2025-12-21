@@ -101,11 +101,13 @@ jobs:
           cd build
 
           if [ "${{ runner.os }}" = "Windows" ]; then
-            cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../install
+            # Force static library build to preserve libportaudio*.a install outputs
+            cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../install -DPA_BUILD_SHARED_LIBS=OFF
             cmake --build . --config Release
             cmake --install . --config Release
           else
-            cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../install
+            # Force static library build to preserve libportaudio*.a install outputs
+            cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=../install -DPA_BUILD_SHARED_LIBS=OFF
             make -j$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 4)
             make install
           fi

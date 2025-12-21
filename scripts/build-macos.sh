@@ -27,7 +27,7 @@ fi
 # Find PortAudio static library under ${PA_PREFIX}/lib
 PA_LIB=$(find "$PA_PREFIX/lib" -name "libportaudio*.a" | head -n 1)
 if [ -z "$PA_LIB" ]; then
-    echo "Error: Could not find PortAudio static library in portaudio/install/lib"
+    echo "Error: Could not find PortAudio static library in $PA_PREFIX/lib"
     exit 1
 fi
 
@@ -38,7 +38,7 @@ echo "Compiling play_buffer..."
 gcc -o play_buffer play_buffer.c \
     -DPLAYBUFFER_VERSION="\"$VERSION\"" \
     -DPORTAUDIO_COMMIT="\"$PORTAUDIO_COMMIT\"" \
-    -I portaudio/install/include \
+    -I "$PA_PREFIX/include" \
     "$PA_LIB" \
     -framework CoreAudio \
     -framework CoreFoundation \
