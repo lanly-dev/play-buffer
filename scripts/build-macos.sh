@@ -11,14 +11,14 @@ echo "Building version: $VERSION"
 PORTAUDIO_COMMIT=${PORTAUDIO_COMMIT:-"unknown"}
 echo "PortAudio commit: $PORTAUDIO_COMMIT"
 
-# Check that PortAudio was built by CI workflow
-if [ ! -d "portaudio/install" ]; then
-    echo "Error: PortAudio not found. Expected at portaudio/install/"
+# Check that PortAudio was built by CI workflow (we run this script from inside the portaudio clone)
+if [ ! -d "install" ]; then
+    echo "Error: PortAudio not found. Expected at install/ (run this script from inside the portaudio repo)"
     exit 1
 fi
 
-# Find PortAudio library
-PA_LIB=$(find portaudio/install/lib -name "libportaudio*.a" | head -n 1)
+# Find PortAudio static library under install/lib
+PA_LIB=$(find install/lib -name "libportaudio*.a" | head -n 1)
 if [ -z "$PA_LIB" ]; then
     echo "Error: Could not find PortAudio static library in portaudio/install/lib"
     exit 1
