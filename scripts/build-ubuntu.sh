@@ -11,21 +11,15 @@ echo "Building version: $VERSION"
 PORTAUDIO_COMMIT=${PORTAUDIO_COMMIT:-"unknown"}
 echo "PortAudio commit: $PORTAUDIO_COMMIT"
 
-# Locate PortAudio install directory. This script can be run either:
-# - from inside the cloned `portaudio` directory (where install/ will exist), or
-# - from repository root (where portaudio/install/ will exist).
-PA_PREFIX=""
-if [ -d "install" ]; then
-    PA_PREFIX="install"
-elif [ -d "portaudio/install" ]; then
-    PA_PREFIX="portaudio/install"
-else
-    echo "Error: PortAudio not found. Expected at install/ or portaudio/install/"
-    exit 1
-fi
+# Assume CI builds PortAudio into portaudio/install/ (workflow clones into repo root)
+PA_PREFIX="portaudio/install"
 
 # Find PortAudio static library under ${PA_PREFIX}/lib
 PA_LIB=$(find "$PA_PREFIX/lib" -name "libportaudio*.a" | head -n 1)
+if [ ! -d "$PA_PREFIX" ]; then
+    echo "Error: PortAudio not found. Expected at portaudio/install/"
+    exit 1
+fi
 if [ -z "$PA_LIB" ]; then
     echo "Error: Could not find PortAudio static library in $PA_PREFIX/lib"
     exit 1
