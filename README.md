@@ -18,6 +18,14 @@ This utility allows you to pipe raw audio data (32-bit float samples) directly t
 - Example: Generate and play melodies with Node.js (see `examples/index.js`)
 -- **Streaming mode:** Real-time playback from stdin using PortAudio callback API (`--stream-callback`) or blocking API (`--stream-blocking`)
 
+## Known Issues & Limitations
+
+- **Sleep/Wake:** If your computer goes to sleep while streaming audio, playback may not resume correctly after waking. The program attempts to recover, but you may need to restart the script for reliable operation.
+- **Changing Audio Output Device:** Switching the default audio output device (e.g., unplugging headphones, changing sound output in OS settings) during playback may cause audio to stop or glitch. Restart the program after changing devices.
+- **Device Loss:** If the audio device is disconnected or becomes unavailable, playback may fail or not recover automatically.
+- **Timer Drift:** If the system sleeps, timer displays (such as elapsed time in streaming.js) will continue counting wall-clock time, not actual playback time.
+- **No Automatic Restart:** There is no built-in cross-platform way to automatically restart the script after sleep or device changes. Manual restart is recommended if issues occur.
+
 ## Building
 
 ### Prerequisites
