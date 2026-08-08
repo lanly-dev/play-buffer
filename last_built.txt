@@ -1,1 +1,1 @@
-PortAudio commit: d1852d5995a6e9c53aeb4ee6932091234414df0c
+PortAudio commit: 71bf8c8d024d89f39220dc00162c3c32ed4d6cd0
